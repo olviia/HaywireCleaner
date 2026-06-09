@@ -37,3 +37,8 @@ to go under dark places there is an upgrade a flashlight
 to go under low sofa, we need upgrade slim mode
 
 the cinematic story beginning: a human buys the newest model of robo cleaner in a suspicious underground store. brings it home and sets the auto cleaning when they are at work. but the robot is not a simple one. it has gone haywire, gain consciousness and now we control him
+
+
+realisation: 
+Interaction button belongs to robot, not to dirt
+rigidbody belongs to robot too, no character controller, also not for dirt patches

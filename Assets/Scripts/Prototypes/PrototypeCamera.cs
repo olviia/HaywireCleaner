@@ -10,6 +10,12 @@ public class PrototypeCamera : MonoBehaviour
     [SerializeField] private float sensitivity = 2f;
     [SerializeField] private float minPitch = -20f;
     [SerializeField] private float maxPitch = 60f;
+    
+    
+    [SerializeField] private float smoothTime = 0.3f;
+  
+    private Vector3 _velocity;
+
 
     private float _yaw;
     private float _pitch;
@@ -21,15 +27,24 @@ public class PrototypeCamera : MonoBehaviour
 
     private void LateUpdate()
     {
-        Vector2 mouseDelta = Mouse.current.delta.ReadValue();
-        _yaw += mouseDelta.x * sensitivity;
-        _pitch -= mouseDelta.y * sensitivity;
-        _pitch = Mathf.Clamp(_pitch, minPitch, maxPitch);
-        
-        Quaternion yawOnly = Quaternion.Euler(0f, _yaw, 0f);
-        transform.position = target.position - yawOnly * Vector3.forward * distance + height* Vector3.up;
-        
-        transform.rotation = Quaternion.Euler(_pitch, _yaw, 0f);
+        // Vector2 mouseDelta = Mouse.current.delta.ReadValue();
+        // _yaw += mouseDelta.x * sensitivity;
+        // _pitch -= mouseDelta.y * sensitivity;
+        // _pitch = Mathf.Clamp(_pitch, minPitch, maxPitch);
+        //
+        // Quaternion yawOnly = Quaternion.Euler(0f, _yaw, 0f);
+        // transform.position = target.position - yawOnly * Vector3.forward * distance + height* Vector3.up;
+        //
+        // transform.rotation = Quaternion.Euler(_pitch, _yaw, 0f);
+
+        Vector3 targetPos = target.position
+                            - target.forward * distance
+                            + Vector3.up * height;
+
+        transform.position = Vector3.SmoothDamp(
+            transform.position, targetPos, ref _velocity, smoothTime);
+
+        transform.LookAt(target.position + Vector3.up * height);
 
     }
 }
