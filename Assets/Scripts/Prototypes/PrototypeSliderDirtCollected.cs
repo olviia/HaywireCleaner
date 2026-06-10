@@ -7,6 +7,7 @@ namespace Prototypes
     {
         private int cleaned;
         [SerializeField] private int total;
+        [SerializeField] private GameObject finalpopup;
 
         private Slider slider;
 
@@ -21,5 +22,14 @@ namespace Prototypes
             Debug.Log((float)cleaned/total);
             slider.value = (float)cleaned/total;
         }
+
+        void Update()
+        {
+            if (cleaned == total)
+            {
+                finalpopup.SetActive(true);
+            }
+        }
+        
     }
 }

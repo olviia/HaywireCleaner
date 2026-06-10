@@ -12,6 +12,7 @@ namespace Prototypes
     {
         [SerializeField] private PrototypeDirtPatch[] patches;
         [SerializeField] private GameObject popup;
+        [SerializeField] private GameObject popupflashlight;
         [SerializeField] private float popupDuration  = 1f;
         [SerializeField] private GameObject flashLight;
         
@@ -34,14 +35,11 @@ namespace Prototypes
             {
                 collected++;
                 StartCoroutine(BeadPopup());
-                Debug.Log("beads collected: " + collected);
                 if (collected == 3)
                 {
-                    popupDuration *= 2;
-                    
-                    Debug.Log("3 beads collected");
                     //add light to robot
                     flashLight.SetActive(true);
+                    popupflashlight.SetActive(true);
                 }
             }
         }

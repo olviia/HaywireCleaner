@@ -5038,7 +5038,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 8601602639237076878}
-  - component: {fileID: 8120821769810405986}
+  - component: {fileID: 3497959490078093301}
   - component: {fileID: 2764885152148950663}
   - component: {fileID: 9070251325159340450}
   - component: {fileID: 8353632242277276559}
@@ -5067,7 +5067,7 @@ Transform:
   - {fileID: 7428257749650918942}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &8120821769810405986
+--- !u!114 &3497959490078093301
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -5076,13 +5076,15 @@ MonoBehaviour:
   m_GameObject: {fileID: 8889864648909477134}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a8665bcfa1fa2ed459b68ba1693734b5, type: 3}
+  m_Script: {fileID: 11500000, guid: cf94b0b0cfa047e4b601740795b6d13a, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PrototypeDirtPatch
+  m_EditorClassIdentifier: Assembly-CSharp::FpvSlimPrototype.FpvSlimProtDirt
   isInRange: 0
   _isCleaned: 0
   collectSymbol: {fileID: 1695456375617567307}
   particles: {fileID: 5363614336080181076}
+  slider: {fileID: 0}
+  beads: {fileID: 0}
 --- !u!33 &2764885152148950663
 MeshFilter:
   m_ObjectHideFlags: 0

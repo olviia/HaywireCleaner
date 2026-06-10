@@ -27,7 +27,7 @@ cleaning: on interact button, very swift, half a second action with sound of suc
 
 For version 1:
 - Discrete DirtPatch objects — placed in the scene, each is a GameObject with a state (dirty/clean). Simple, authored, easy to track progress ("3 of 7 cleaned"). when the state is changed to clean, vfx of sparkles is played
-- so some patches give us small yellow beads, and when we collect like 3 of them , then we get flashlight. and then when we collect 7, we get slim mode. and under sofa we find a sock or something. the overall goal is to find this sock, and then we get a congratulations popup and the end of the prototype 1
+- so some patches give us small yellow beads, and when we collect like 3 of them , then we get flashlight. 
 
 
 future ideas:

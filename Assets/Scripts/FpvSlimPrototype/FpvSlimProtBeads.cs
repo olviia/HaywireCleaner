@@ -1,0 +1,85 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.UI;
+using Random = UnityEngine.Random;
+
+namespace FpvSlimPrototype
+{
+    public class FpvSlimProtBeads:MonoBehaviour
+    {
+        [SerializeField] private FpvSlimProtDirt[] patches;
+        [SerializeField] private GameObject popup;
+        [SerializeField] private GameObject popupflashlight;
+        [SerializeField] private float popupDuration  = 1f;
+        [SerializeField] private FpvSlimProtBotMove robot;
+        
+        HashSet<int> beadIndexes = new HashSet<int>();
+        
+
+        private int collected;
+
+        void Start()
+        {
+            while (beadIndexes.Count < 3)
+            {
+                beadIndexes.Add(Random.Range(0, patches.Length));
+            }
+        }
+
+        public void CheckBead(FpvSlimProtDirt patch)
+        {
+            if (beadIndexes.Contains(Array.IndexOf(patches, patch)))
+            {
+                collected++;
+                StartCoroutine(BeadPopup());
+                if (collected == 3)
+                {
+                    robot.canBeSlim = true;
+                    robot.GoSlim();
+                    popupflashlight.SetActive(true);
+                }
+            }
+        }
+        
+        IEnumerator BeadPopup()
+        {
+
+            
+            popup.SetActive(true);
+            popup.transform.localScale = Vector3.zero;
+            Image popupImage = popup.GetComponent<Image>();
+            
+            Color c = popupImage.color;
+            c.a = 1f;
+            popupImage.color = c;
+  
+            // scale up
+            float t = 0f;
+            while (t < 1f)
+            {
+                t += Time.deltaTime / (popupDuration*0.2f);
+                popup.transform.localScale = Vector3.Lerp(Vector3.zero, Vector3.one,   
+                    t);
+                yield return null;
+            }
+
+            yield return new WaitForSeconds(popupDuration*0.5f);
+
+            // fade out
+            t = 0f;
+            while (t < 1f)
+            {
+                t += Time.deltaTime / (popupDuration*0.3f);
+                
+                c.a = Mathf.Lerp(1f, 0f, t);
+                popupImage.color = c;
+
+                yield return null;
+            }
+
+            popup.SetActive(false);
+        }
+    }
+}
