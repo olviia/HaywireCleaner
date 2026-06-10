@@ -1,3 +1,15 @@
+Communication: no writing code for me please. hinting
+
+
+
+
+
+
+
+
+
+
+
 # HaywireCleaner (working title: "Dust & Glory")
 
 A small RPG about a round robot vacuum cleaner that goes haywire — instead of just

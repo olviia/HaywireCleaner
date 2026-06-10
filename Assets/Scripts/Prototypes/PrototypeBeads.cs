@@ -48,10 +48,15 @@ namespace Prototypes
         
         IEnumerator BeadPopup()
         {
+
+            
             popup.SetActive(true);
             popup.transform.localScale = Vector3.zero;
             Image popupImage = popup.GetComponent<Image>();
-           
+            
+            Color c = popupImage.color;
+            c.a = 1f;
+            popupImage.color = c;
   
             // scale up
             float t = 0f;
@@ -70,7 +75,7 @@ namespace Prototypes
             while (t < 1f)
             {
                 t += Time.deltaTime / (popupDuration*0.3f);
-                Color c = popupImage.color;
+                
                 c.a = Mathf.Lerp(1f, 0f, t);
                 popupImage.color = c;
 

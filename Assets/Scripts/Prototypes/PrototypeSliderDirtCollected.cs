@@ -18,6 +18,7 @@ namespace Prototypes
         public void OnDirtCleaned()
         {
             cleaned++;
+            Debug.Log((float)cleaned/total);
             slider.value = (float)cleaned/total;
         }
     }
