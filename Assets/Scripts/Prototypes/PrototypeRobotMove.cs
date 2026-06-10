@@ -25,7 +25,7 @@ public class PrototypeRobotMove : MonoBehaviour
     void ReadInput()
     {
          _moveInput = Keyboard.current.wKey.isPressed ? 1f :                        
-             /*Keyboard.current.sKey.isPressed ? -1f :*/ 0f; 
+             Keyboard.current.sKey.isPressed ? -0.1f : 0f; 
          _rotateInput =  Keyboard.current.dKey.isPressed ? 1f :                    
              Keyboard.current.aKey.isPressed ? -1f : 0f;
     }

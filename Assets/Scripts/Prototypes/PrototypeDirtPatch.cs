@@ -1,4 +1,5 @@
 using System;
+using Prototypes;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -9,6 +10,8 @@ public class PrototypeDirtPatch : MonoBehaviour
     public bool _isCleaned;
     [SerializeField] private GameObject collectSymbol;
     [SerializeField] private ParticleSystem particles;
+    [SerializeField] private PrototypeSliderDirtCollected slider;
+    [SerializeField] private PrototypeBeads beads;
 
 
     // Update is called once per frame
@@ -30,6 +33,9 @@ public class PrototypeDirtPatch : MonoBehaviour
         transform.GetComponent<MeshRenderer>().enabled = false;
         particles.Play();
         _isCleaned = true;
+        slider.OnDirtCleaned();
+
+        beads.CheckBead(this);
     }
 
     public bool CanBeCleaned()
