@@ -15,6 +15,8 @@ namespace FpvSlimPrototype
 
         public bool canBeSlim;
         private bool isSlim;
+        
+        
 
         void Awake()
         {
@@ -31,7 +33,7 @@ namespace FpvSlimPrototype
 
         private void Update()
         {
-            if (Keyboard.current.spaceKey.isPressed)
+            if (Keyboard.current.spaceKey.wasReleasedThisFrame)
             {
                 GoSlim();
             }
@@ -71,5 +73,7 @@ namespace FpvSlimPrototype
             scale.y = isSlim ? 0.4f : 1f;
             transform.localScale = scale;
         }
+
+
     }
 }

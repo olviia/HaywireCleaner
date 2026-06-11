@@ -42,3 +42,32 @@ the cinematic story beginning: a human buys the newest model of robo cleaner in 
 realisation: 
 Interaction button belongs to robot, not to dirt
 rigidbody belongs to robot too, no character controller, also not for dirt patches
+
+small core. i can attach things to core, core knows nothing about them, they communicate though core. core never imports a feature, feattures never reach into each other. they use event bus
+
+think about save/load contract because it is expensive to retrofit
+localization too
+controller (and mobile) support
+ui responsiveness
+may be worth looking into and get the structure from https://github.com/fydar/RPGCore
+single responsibility systems:
+- input component that handles what happens when player presses a button
+- target
+- stats
+- experience
+- death
+- action manager - has loaded abilities for an actor - player and ai enemies
+- meshvfx - vfx for a mesh
+- animation- controls all animation from one place
+- team - party/group (unneeded currently)
+- graph data controller
+- loot - what this actor will drop - data riented - datatable
+- loot spawning system
+- progression - skills
+- ai: logic, combat (ai version of input), movement, track/threat
+- player
+- commujnication through interfaces
+- spawners/respawners
+- here: https://www.youtube.com/watch?v=qqKaX_01Zf8
+
+![img_2.png](img_2.png)![img_3.png](img_3.png)

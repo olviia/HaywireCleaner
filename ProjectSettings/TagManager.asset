@@ -6,6 +6,7 @@ TagManager:
   tags:
   - PrototypeSwipeArea
   - PrototypeDirt
+  - PrototypeSlimArea
   layers:
   - Default
   - TransparentFX
