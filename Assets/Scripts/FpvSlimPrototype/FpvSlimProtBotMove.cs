@@ -26,13 +26,13 @@ namespace FpvSlimPrototype
 
         private void FixedUpdate()
         {
-            ReadInput();
             Rotate();
             Move();
         }
 
         private void Update()
         {
+            ReadInput();
             if (Keyboard.current.spaceKey.wasReleasedThisFrame)
             {
                 GoSlim();
@@ -61,8 +61,7 @@ namespace FpvSlimPrototype
         void Rotate()
         {
             float yaw = _rotateInput * rotateSpeed * Time.fixedDeltaTime;
-            Quaternion deltaRotation = Quaternion.Euler(0f, yaw, 0f);
-            _rb.MoveRotation(_rb.rotation * deltaRotation);
+            _rb.MoveRotation(_rb.rotation * Quaternion.Euler(0f, yaw, 0f));
         }
 
         public void GoSlim()

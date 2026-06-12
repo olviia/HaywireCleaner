@@ -1,0 +1,6 @@
+{
+  "name": "Features.Title",
+  "references": [
+    "Core"
+  ]
+}

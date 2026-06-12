@@ -1,0 +1,6 @@
+{
+  "name": "Bootstrap",
+  "references": [
+    "Core"
+  ]
+}

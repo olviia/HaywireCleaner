@@ -32,21 +32,35 @@ optional detour reward off the path) → **grow** (earn a module) → the new mo
 Standard challenge → action → reward triad, with growth feeding back into the space
 you already know. This loop *is* the game; everything else is meta layered on later.
 
-## MVP scope (do not exceed in v1)
+## MVP scope
+
+The core loop (above) is validated — two prototypes confirmed it feels right. The
+remaining unknown isn't "is this fun," it's "does the architecture hold across a
+whole game's worth of systems." MVP is therefore a **walking skeleton** (Cockburn):
+every system in the player-facing flow written out in `docs/designers vision.md`
+(splash → title → save/load → settings → new game → cutscene → tutorial → core
+loop → return-to-base) exists and is wired end-to-end through Core, each at
+minimal/stub depth. Breadth now, depth later — see
+`docs/architecture-foundations.md` for why stub-now/enrich-later doesn't require
+reopening the seams between systems.
+
+**Content scope** (depth/quantity — separate axis from the above, can grow without
+touching the skeleton):
 
 - ONE small handcrafted house, 3-4 rooms. Authored once — this is the entire "world."
 - THREE modules max, each a tangible EARNED ability that reopens cleaned areas:
   start = open floor only → slim mode (fit under furniture) → one more (suction OR
   climb). Depth comes from **module × space** combinations, not module count.
-- The closed loop above, with **hardcoded goals** (not a full quest system yet).
 - ONE renewable mess source: a single shedding cat — texture that re-dirties the
   house, not a chase mechanic.
+- A minimal main-quest/subquest hierarchy (per `docs/designers vision.md`'s
+  opening sequence), not a full authoring-driven quest system.
 
-**Deferred past v1** (NOT rejected from the vision — this is a sequencing decision,
-made so the core loop can be validated before investing in systems that depend on
-it feeling right): decoration, trading, economy, story, multiple pets, chase
-mechanic, formal quest system. The goal is a real RPG, small in scope — these are
-likely to come back once the loop is proven, not permanently cut.
+**Deferred past v1** (content, not systems — the systems above exist as stubs
+regardless): decoration, trading, economy, full story/dialogue beyond the opening,
+multiple pets, chase mechanic, additional rooms/modules beyond the above. The goal
+is a real RPG, small in scope — these are likely to come back once the skeleton is
+proven, not permanently cut.
 
 ## Hard constraints (filter every decision through these)
 
@@ -105,6 +119,11 @@ spaghetti under deadline pressure; this time wants structure from the start —
 **but informed by a felt prototype, not assumptions** (see Process below).
 
 ## Architecture philosophy: build a skeleton that absorbs iteration
+
+*See `docs/architecture-foundations.md` for the full treatment — what "Core" is,
+how it differs from "modules"/"features," and how this maps onto Nystrom's Game
+Programming Patterns plus real precedents (Creation Engine, Pearl Abyss-style
+ability layering). This section stays as the short summary.*
 
 Game design at this scale is necessarily iterative — you cannot fully predict what
 will be fun or what systems the game will need before playing it (this is well
@@ -183,21 +202,27 @@ modules/upgrades, obstacles (cat tail, boxes, fur), inventory, quests, dirt patc
 ## Design/architecture process
 
 1. ~~Resolve spatial-vs-systemic fork~~ — done, see above.
-2. **Decide which RPG systems this game actually needs, deliberately** — using MDA
-   (above): for each candidate (inventory, stats, appearance, quests, ...), trace
-   whether it produces a Dynamic that serves one of the stated Aesthetics. This
-   produces a reasoned list of "what this RPG needs," scoped to *this* game's
-   experience rather than inherited genre convention.
-3. **Define and build a vertical slice**: the smallest fully-playable instance of the
-   loop (one room, base movement + clean action + one obstacle type + one module gate
-   that reopens a previously-blocked spot).
-4. Set up architecture using the axes-of-change mapping above: data-driven assets
-   for modules/obstacles, events for systems arriving later, tunable values for
-   anything play will need to adjust, plain direct code for everything else. E.g.
-   model "owned modules" as a collection from day one, even when v1 only ever
-   populates it with one entry — same effort now, but already the right shape for
-   growth.
-5. Playtest the slice on yourself ruthlessly (the "is the ding there in 30 seconds"
-   test) before expanding to the full MVP scope.
+2. **Decide which RPG systems this game actually needs** — using MDA (above).
+   In practice now driven by `docs/designers vision.md`: the full player-facing
+   flow, written scene-by-scene, is the source for which systems exist. The MDA
+   test ("does this serve a stated Aesthetic, or is it inherited genre furniture?")
+   still applies per-system as each is built.
+3. **Build a walking skeleton** (Cockburn) — every screen/system from
+   `docs/designers vision.md`'s flow, wired end-to-end through Core, at minimal
+   depth. Sequence: GameFlow seam (screen state machine) → splash → title →
+   save/load → settings → new game/cutscene → tutorial → core loop (already
+   prototyped, now rewired through Core instead of prototype code).
+4. Set up architecture using the axes-of-change mapping above and
+   `docs/architecture-foundations.md`'s core inventory (events, capability tags,
+   attributes, game state, action slots, GameFlow): data-driven assets for
+   modules/obstacles/cutscenes, events for cross-system communication, tunable
+   values for anything play will need to adjust, plain direct code for everything
+   else.
+5. Playtest the skeleton end-to-end (splash through the first "ding") before
+   deepening any one system's content.
+
+Companion docs: `docs/architecture-foundations.md` (what Core is, Nystrom/Parnas
+mapping), `docs/designers vision.md` (the flow the skeleton is built from),
+`docs/pre architectural investigation.md` (early raw notes).
 
 For current status and active work, see `docs/plan.md`.
