@@ -6,7 +6,9 @@ namespace Core
     public enum GameScene
     {
         Title, 
-        Gameplay
+        Gameplay, 
+        Prototype1,
+        Prototype2
     }
     /// <summary>
     /// Core seam for app-level screens (Title, Gameplay, ...). Features call

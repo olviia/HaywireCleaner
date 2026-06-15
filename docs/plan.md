@@ -35,13 +35,13 @@ to do community:
 -
 
 in progress dev:
-◻ Define Core/GameFlow seam (Game State Machine)
+◻ Build minimal Title screen (first GameFlow seam proof)
 
 todo dev:
 
 6 tasks (0 done, 6 open)
 
-◻ Build minimal Title screen (first GameFlow seam proof)
+
 ◻ Build minimal save/load seam (GameState serialization)
 ◻ Build minimal Settings screen
 ◻ Design data-driven Cutscene system (CutsceneDef + player)
@@ -51,3 +51,4 @@ done dev:
 + add 1 popup for when light appears
 + add 1 popup for when we collect all dust
 + - - start making the second prototype
+- ◻ Define Core/SceneState seam (Bootstrap, SceneStateMachine, SceneLoader)

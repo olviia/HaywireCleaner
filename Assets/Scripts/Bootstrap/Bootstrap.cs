@@ -35,7 +35,9 @@ namespace Bootstrap
             SceneLoader.Initialize(new Dictionary<GameScene, string>
                 {
                     { GameScene.Title , "Title" },
-                    { GameScene.Gameplay , "Gameplay" }
+                    { GameScene.Gameplay , "Gameplay" },
+                    { GameScene.Prototype1, "LoopTestScene"},
+                    { GameScene.Prototype2, "FpvSlimTestScene"}
                 });
             SceneStateMachine.OnGameSceneChanged += SceneLoader.LoadScene;
         }

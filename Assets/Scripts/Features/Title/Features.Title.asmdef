@@ -1,6 +1,7 @@
 {
   "name": "Features.Title",
   "references": [
-    "Core"
+    "Core",
+    "Unity.Localization"
   ]
 }
