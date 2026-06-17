@@ -45,6 +45,26 @@ rigidbody belongs to robot too, no character controller, also not for dirt patch
 
 small core. i can attach things to core, core knows nothing about them, they communicate though core. core never imports a feature, feattures never reach into each other. they use event bus
 
+how to make saves:
+tiered persistence model:
+tier 1 - permanent facts
+- quest comletion, skills aquired, collection flags, reputation, permanent world changes. factstore
+tier 2 mutable world state:
+- health, resources, current dirt levels, cat fur regrowth, clock etc
+tier 3 trinsient state - derived on load, instead of being saved
+- npc positions, physics object positions, particle state. they depend on tier 1 and 2 and on authored data at load time
+example cat: dont save the position. save behavioural states (wandering, scratching, shedding, sitting) and timer
+this save system needs clock and calendar
+Factstore is a dictionary
+- Dictionary<string, int> (or float, or bool — int covers all three:
+  0/1 for bool, count for numeric). Named by stable string keys. This   
+  handles:
+    - Boolean: "intro_cutscene_seen" = 1
+    - Count: "times_returned_to_dock" = 3
+    - Stage: "main_quest_stage" = 2
+    - Permanent world state: "closet_door_open" = 1
+
+
 think about save/load contract because it is expensive to retrofit
 localization too
 controller (and mobile) support
@@ -71,3 +91,5 @@ single responsibility systems:
 - here: https://www.youtube.com/watch?v=qqKaX_01Zf8
 
 ![img_2.png](img_2.png)![img_3.png](img_3.png)
+
+

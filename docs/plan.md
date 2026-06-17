@@ -35,14 +35,14 @@ to do community:
 -
 
 in progress dev:
-◻ Build minimal Title screen (first GameFlow seam proof)
+◻ Build minimal save/load seam (GameState serialization)
 
 todo dev:
 
 6 tasks (0 done, 6 open)
 
 
-◻ Build minimal save/load seam (GameState serialization)
+
 ◻ Build minimal Settings screen
 ◻ Design data-driven Cutscene system (CutsceneDef + player)
 
@@ -52,3 +52,4 @@ done dev:
 + add 1 popup for when we collect all dust
 + - - start making the second prototype
 - ◻ Define Core/SceneState seam (Bootstrap, SceneStateMachine, SceneLoader)
+- ◻ Build minimal Title screen (first GameFlow seam proof)
