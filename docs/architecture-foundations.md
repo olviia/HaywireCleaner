@@ -26,7 +26,12 @@ turns out to be the same four things wearing different clothes:
    vocabulary (the weapon system runs any WEAP record; the ability runner runs
    any granted ability).
 3. **Plumbing** — the channels things communicate through without referencing
-   each other (event bus, story manager, message queue).
+   each other (event bus, story manager, message queue). *Precision worth
+   fixing here because it's a recurring confusion point: in every precedent
+   below, "event bus" means a small set of named, typed channels — Skyrim's
+   per-event Story Manager hooks, GAS's per-effect callbacks, this project's
+   `Events.cs` (§6.2) — never one generic dispatcher keyed by strings. See
+   §1.4 for a third, independent confirmation of this.*
 4. **A registry** — the thing that resolves an identity to live content at
    runtime (the form table, the service locator, the owned-modules set).
 
@@ -167,6 +172,32 @@ collaborators the boundary protects are:
 - **Present-you** vs **future-you** — in three months you'll have forgotten
   the internals. A boundary that survives forgetting is the same boundary that
   would survive a coworker.
+
+### 1.4 A third confirmation, independently sourced: CryEngine's typed entity events
+
+Pearl Abyss's BlackSpace internals (§2.1) aren't public, but a different,
+currently-shipping AAA RPG running a fork of a *publicly documented* engine
+answers the same "what is plumbing, actually" question independently:
+**Kingdom Come: Deliverance II**, built on a heavily modified CryEngine fork
+(Warhorse Studios — confirmed in the game's own technical coverage; they had
+source access and rewrote rendering, AI, and quest systems on top of it).
+
+CryEngine's documented entity-component layer has no generic event bus. A
+component declares which typed `SEntityEvent` values it cares about via
+`GetEventMask()`; the engine calls `ProcessEvent()` only on components that
+asked for that specific event, scoped to that entity — never a string-keyed
+broadcast to the whole game. Above that sits **Schematyc**, the engine's
+quest/level-logic layer: it listens to those typed component signals and
+turns them into named, queryable state. That's a *designed aggregation
+layer*, not a second bus — the same shape as the Story Manager (§1.1) and
+this project's `ModuleSystem` (§6.3's acquisition-flow trace).
+
+The point isn't "CryEngine specifically." It's that three independent
+lineages — Bethesda's Creation Engine, Epic's GAS, and CryEngine as used by
+Warhorse — converge on the identical answer: **typed, scoped signals out; a
+dedicated aggregator in; no generic dispatcher anywhere in the stack.** When
+three unrelated AAA engines built for different genres land on the same
+shape, that's the shape, not a house style.
 
 ---
 
@@ -402,6 +433,17 @@ their own. A full DI framework is cargo cult at this scale (§9); ambient
 is the line between them. (No system scheduler is needed — Unity's player
 loop is sufficient at this scope; explicit ordering exists only at boot, in
 the composition root.)
+
+This isn't just an indie-scale shortcut — it's what the engine authors do
+too. Unreal's own answer to "how do systems get composed" is **Subsystems**
+(`GameInstanceSubsystem`, `WorldSubsystem`): auto-instanced, explicitly
+registered, with `InitializeDependency<T>()` called when one subsystem
+genuinely needs another to exist first — not a reflection-based IoC
+container resolving an object graph. Epic's own documentation states the
+best practice as *minimizing direct subsystem-to-subsystem references in
+favor of events/interfaces*. Composition root + typed events, not container
++ generic bus, is the documented choice at engine-author scale, not a
+concession made for solo/jam scale.
 
 ---
 
@@ -749,6 +791,15 @@ Grounding for each load-bearing claim:
   "GASDocumentation" (tranek) deep-dive** — the public, documented industrial
   implementation of pattern B (abilities, attributes+modifiers, tags,
   granting). Read for concepts, not to port.
+- **Unreal Engine Subsystems documentation** (`UGameInstanceSubsystem`,
+  `InitializeDependency`) — Epic's own documented composition-root pattern;
+  grounds §4.5's "DI framework is cargo cult at this scale" with an
+  engine-author precedent, not just a solo-scale rationalization.
+- **CryEngine Entity Components documentation** (`IEntityComponent`,
+  `GetEventMask`/`ProcessEvent`, Schematyc signals) — the typed-event,
+  no-generic-bus precedent in §1.4. Directly relevant because **Kingdom
+  Come: Deliverance II** ships on a heavily modified fork of this engine,
+  making it a live, current AAA RPG precedent rather than an inferred one.
 - **Ryan Hipple, "Game Architecture with Scriptable Objects" (Unite Austin
   2017)** — the Unity-native instantiation of records-as-assets and
   SO event channels; already cited in `design.md`.
@@ -769,35 +820,48 @@ First concrete Core seam, built during the walking-skeleton start. Recorded here
 because it's a worked instance of §6.3's "modules connect to core" answer, applied
 to screens rather than gameplay modules.
 
-- **`Core/GameStateMachine`** — pure static class (no MonoBehaviour, no scene
+*Naming note (corrected 2026-06-20): the names below were the conceptual
+sketch written the same day this seam was built; the actual typed code used
+`SceneStateMachine`/`GameScene`/`SceneLoader` from the first commit
+(`184bc48`) onward, not `GameStateMachine`/`GameState`/`SceneFlowLoader` as
+originally written here — drift between this write-up and the implementation
+from day one, not a later rename. Corrected to match the shipped code; the
+likely reason the implementation diverged is also a good one to keep:
+`GameState` was free to mean the *save-data* object from §6.2's core
+inventory (now `SaveData.cs`) instead of colliding with the screen-flow enum.*
+
+- **`Core/SceneStateMachine`** — pure static class (no MonoBehaviour, no scene
   presence; §4.4's state/view split applied to flow itself). Holds
-  `GameState CurrentGameState`, `event Action<GameState> OnGameStateChangedTo`,
-  `ChangeStateTo(state)`. `GameState` is `public` — it's Core vocabulary Features
-  must reference (§4.1 pattern, applied to screens instead of capability tags).
+  `GameScene CurrentGameScene`, `event Action<GameScene, GameScene>
+  OnGameSceneChanged` (from, to — not just "to"), `ChangeSceneTo(nextScene)`.
+  `GameScene` is `public` — it's Core vocabulary Features must reference (§4.1
+  pattern, applied to screens instead of capability tags).
 - **Screens are separate Unity Scenes** (`Title.unity`, `Gameplay.unity`, ...), not
   Canvas panels in one scene. Stronger Feature↛Feature enforcement than asmdefs
   alone (no cross-scene Inspector references possible) — the scene boundary *is*
   the seam, physically. Also the practical win for solo step-by-step iteration:
   open `Gameplay.unity`, press Play, you're in it — no walking through Title first.
 - **No Bootstrap scene, no `DontDestroyOnLoad`.** `Title.unity` is Build Settings
-  index 0 (Unity's default loaded scene) *and* `GameState.Title` is the enum's
-  default value (0) — the defaults line up, so `CurrentGameState` is already
+  index 0 (Unity's default loaded scene) *and* `GameScene.Title` is the enum's
+  default value (0) — the defaults line up, so `CurrentGameScene` is already
   `Title` the instant the static field initializes, before any scene-load logic
   runs. Nothing needs to "load Title"; Unity already did.
 - **`Bootstrap/Bootstrap`** — static class, `[RuntimeInitializeOnLoadMethod
   (BeforeSceneLoad)]`. Runs once, before Title's own `Awake`s. The one named
   exception to "Features → Core only, Core → nothing" (Seemann's composition
   root): the only place allowed to know both `Core` vocabulary and Feature scene
-  names. Holds the `GameState → scene name` map (configuration) and wires
-  `Core/SceneFlowLoader` to `GameStateMachine.OnGameStateChangedTo` (wiring). No
-  behavior of its own, nothing depends on it — pure composition, per §"what
-  architects say belongs in a composition root".
-- **`Core/SceneFlowLoader`** — static class, no MonoBehaviour. Given the
-  `GameState → scene name` map by Bootstrap; on `OnGameStateChangedTo`, calls
-  `SceneManager.LoadSceneAsync(scene, Additive)` and unloads the previous scene
-  on `AsyncOperation.completed` (a plain C# event — no coroutine/MonoBehaviour
-  needed). Generic plumbing: knows *how* to load a scene by name, never *which*
-  names map to which `GameState` — that's Bootstrap's configuration, not Core's.
+  names. Holds the `GameScene → scene name` map (configuration) and wires
+  `Core/SceneLoader.LoadScene` to `SceneStateMachine.OnGameSceneChanged` (wiring).
+  No behavior of its own, nothing depends on it — pure composition, per §4.5/§1.4's
+  "composition root + typed events, not container + generic bus."
+- **`Core/SceneLoader`** — static class, no MonoBehaviour. Given the
+  `GameScene → scene name` map by Bootstrap via `Initialize(map)`; subscribed as
+  the handler for `OnGameSceneChanged`, so `LoadScene(from, to)` runs on every
+  transition: calls `SceneManager.LoadSceneAsync(sceneMap[to], Additive)` and
+  unloads `sceneMap[from]` on `AsyncOperation.completed` (a plain C# event — no
+  coroutine/MonoBehaviour needed). Generic plumbing: knows *how* to load a scene
+  by name, never *which* names map to which `GameScene` — that's Bootstrap's
+  configuration, not Core's.
 - A debug-only scene (excluded from release builds) can host inspectable
   objects/tooling if needed — addresses the editor-visibility gap of having no
   Bootstrap scene, without reintroducing `DontDestroyOnLoad` or a persistent
@@ -816,6 +880,40 @@ to screens rather than gameplay modules.
   (reference `Core` only, plus `UnityEngine.UI`).
 - Splash screen dropped entirely (no publisher/engine requirement, no meaningful
   load time at this scale) — Title is the first screen and the seam's proof.
+
+## Addendum: cutscene trigger shape, as decided (2026-06-21)
+
+Three more precedents converge on the same vocabulary/interpreter split as
+§1/§3, applied to *when does narrative content play*: Larian's Osiris
+(event-driven, declarative — reacts to game events, queries state, fires
+calls), CD Projekt's Facts system (flat key→value store; facts do nothing by
+themselves, a separate generic comparison gates behavior — storage and
+consequence fully decoupled), and HoYoverse's Miliastra Wonderland node
+graphs (typed Event nodes as entry points, feeding generic, parameterized
+Condition and Action nodes via data-flow wires — never a node-type per
+trigger category). The shape, worth recording because it's now independently
+confirmed three times:
+
+> A discrete event enters → a generic, parameterized condition checks it →
+> a generic action fires. Never special-case "kind of trigger" into a tagged
+> struct with one field-set per case.
+
+**This refines §8's "no generic condition evaluator" call — it doesn't
+reverse it.** Adopt the *shape* now (one generic check, one generic action,
+regardless of which event fired); keep the *condition* itself as plain C# (a
+`Func<bool>` per cutscene id, written directly in `CutsceneDirector`), not a
+serialized mini-language (`FactKind`/`Cmp`/key/value records, a condition
+tree asset). Skyrim/CDPR/HoYoverse's conditions are *data* because hundreds
+of designers author them without a programmer in the loop — that payoff
+doesn't exist yet at one person's worth of cutscenes. Each origin system
+(area, quest, cleanliness) still raises its own typed event *and* records
+the corresponding fact in `WorldState` — a direct application of §4.3
+("events for changes, queryable state for current truth") to this feature,
+not a new rule. `CutsceneDirector` funnels every typed event into one
+shared `Evaluate()` that reads `WorldState` through plain predicates, rather
+than a bespoke `MatchesX` per trigger kind. Revisit the data-driven version
+only if cutscene count outgrows what one programmer can keep up with by
+hand — the same threshold §8 already names for the rest of the slice.
 
 ## Where this leaves the process
 

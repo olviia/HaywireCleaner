@@ -1,4 +1,5 @@
 using Core;
+using Core.SaveSystem;
 using UnityEngine;
 using UnityEngine.Localization;
 using UnityEngine.Localization.Settings;
@@ -7,6 +8,11 @@ namespace Features.Title
 {
     public class TestButton:MonoBehaviour
     {
+
+        public void StartNewGame()
+        {
+            GameFlow.StartNewGame();
+        }
         public void OnGoToGameplayButton()
         {
             SceneStateMachine.ChangeSceneTo(GameScene.Gameplay);
@@ -28,6 +34,11 @@ namespace Features.Title
             {
                 LocalizationSettings.SelectedLocale = LocalizationSettings.AvailableLocales.GetLocale("en");
             }
+        }
+
+        public void OnSaveTestButton()
+        {
+            WorldState.Save();
         }
     }
 }

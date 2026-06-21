@@ -35,16 +35,13 @@ to do community:
 -
 
 in progress dev:
-◻ Build minimal save/load seam (GameState serialization)
+◻ Build minimal save/load seam (slowly building when other components are added)
+
+◻ Design data-driven Cutscene system (CutsceneDef + player)
 
 todo dev:
 
-6 tasks (0 done, 6 open)
-
-
-
 ◻ Build minimal Settings screen
-◻ Design data-driven Cutscene system (CutsceneDef + player)
 
 done dev:
 

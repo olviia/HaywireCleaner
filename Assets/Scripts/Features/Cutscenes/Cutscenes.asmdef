@@ -1,0 +1,4 @@
+{
+  "name": "Cutscenes",
+  "references": ["Core", "Unity.Timeline"]
+}

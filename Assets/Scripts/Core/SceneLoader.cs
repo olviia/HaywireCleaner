@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -12,6 +13,7 @@ namespace Core
     public static class SceneLoader
     {
         private static Dictionary<GameScene, string> sceneMap;
+        public static event Action<GameScene> OnSceneLoaded;
 
         public static void Initialize(Dictionary<GameScene, string> map)
         {
@@ -26,7 +28,12 @@ namespace Core
             AsyncOperation loadOperation = SceneManager.LoadSceneAsync(sceneToLoad, 
                                                                         LoadSceneMode.Additive);
             
-            loadOperation.completed += _ => SceneManager.UnloadSceneAsync(sceneToUnload);
+            loadOperation.completed += _ =>
+            {
+                SceneManager.UnloadSceneAsync(sceneToUnload);
+                OnSceneLoaded?.Invoke(to);
+            };
+            
         }
 
 

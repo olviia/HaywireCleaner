@@ -1,0 +1,17 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e2973086f83b45499a7e9f77ee644f5c, type: 3}
+  m_Name: NewGameIntroDefinition
+  m_EditorClassIdentifier: Cutscenes::Features.Cutscenes.CutsceneDefinitionSO
+  id: NewGameIntro
+  cutscenePrefab: {fileID: 4404287804173676646, guid: d8cf660a37057dd4ca0efebf4989a0ac, type: 3}
+  replayable: 0

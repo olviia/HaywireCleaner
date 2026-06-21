@@ -177,7 +177,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Start
+  m_text: New Game
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 04f072c43132a65448201cbdc78e6cf0, type: 2}
   m_sharedMaterial: {fileID: 2100000, guid: b08212234a6d6af41a2efd97458df5f2, type: 2}
@@ -395,7 +395,7 @@ MonoBehaviour:
       m_Calls:
       - m_Target: {fileID: 262738295}
         m_TargetAssemblyTypeName: Features.Title.TestButton, Features.Title
-        m_MethodName: OnGoToPrototypeButton
+        m_MethodName: StartNewGame
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
