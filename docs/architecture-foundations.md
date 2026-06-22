@@ -303,6 +303,101 @@ tables. The composition rule:
 
 That sentence is the architecture of "this sort of RPG."
 
+### 2.5 Precedent C — composition at scale: Mick West's Game Object Component System, and Overwatch's ECS
+
+Pattern B above resolves through *one* actor's action-slot table — it answers
+"what fills the Attack/Interact/Clean slot right now," which is the right
+scope for a robot with three movement-flavored modules. It does not by
+itself answer a question this project is now asking: what happens when
+"module" needs to mean entire independent *domains* — crafting,
+communicating, fixing, fighting — not just modifiers and overrides on one
+actor's existing slots? Forcing five unrelated domains through one
+slot-resolution mechanism is the wrong tool; two more public, well-documented
+precedents answer the scaling question directly.
+
+**Mick West (Neversoft co-founder; Tony Hawk's Pro Skater, Guitar Hero),
+"Game Object Component System," *Game Programming Gems 6* (2006).** The
+move: a game object stops being a class and becomes a thin shell holding a
+list of independently-developed **components**, each handling one concern
+(render, physics, score, collision response...). The load-bearing detail,
+easy to miss: components never call each other's methods directly. They
+communicate by sending typed **messages** through the owning object; any
+component that cares handles it, the rest ignore it silently.
+
+```
+abstract class GameObjectComponent {
+    GameObject Owner
+    abstract HandleMessage(Message msg)
+}
+
+class GameObject {
+    List<GameObjectComponent> components
+    AddComponent(c): c.Owner = this; components.Add(c)
+    SendMessage(msg): for c in components: c.HandleMessage(msg)
+}
+
+class SuctionComponent : GameObjectComponent {
+    HandleMessage(msg):
+        if msg is DirtPatchEntered:
+            Owner.SendMessage(DustCollected(msg.Amount))
+}
+```
+
+`SuctionComponent` never references an inventory or UI component by type —
+it broadcasts `DustCollected` and whatever's listening, listens. This is the
+same shape as this document's own event plumbing (§1.1's Story Manager,
+§4.3's events-for-changes rule), just applied one level down, to objects
+instead of features. It's also, not coincidentally, the direct ancestor of
+Unity's own `GameObject`/`Component`/`SendMessage` — this precedent is why
+Unity is shaped the way it is, not an analogy bolted on afterward.
+
+**Tim Ford (Blizzard), "'Overwatch' Gameplay Architecture and Netcode," GDC
+2017.** A stricter variant: components hold *only* data, no methods at all.
+**Systems** hold all the logic, and a system declares which component types
+it needs; it runs against *every* entity that happens to have that exact
+combination, and knows nothing else about that entity.
+
+```
+struct Position { Vector3 value }
+struct Suction   { float radius, strength }
+struct Collector { float current, max }
+
+system CleaningSystem:
+    for entity in World.Query<Position, Suction, Collector>():
+        for dirt in World.Query<Position, DirtPatch>():
+            if InRange(entity.Position, dirt.Position, entity.Suction.radius):
+                Collect(entity, dirt)
+```
+
+`CleaningSystem` does not know "the robot" exists — only that *some* entity
+has `Position+Suction+Collector`. Add a `Dialogue` component and a
+`DialogueSystem`, or a `Recipe` component and a `CraftingSystem`, and nothing
+above changes. This is the literal mechanism behind "different player,
+different skillset": an entity's capabilities are exactly the set of
+components it carries, and every system is generic over *any* entity with
+the right shape.
+
+**What this changes here, and what it doesn't.** §8 already rules out
+adopting an ECS framework/scheduler (Unity DOTS, a system scheduler) —
+correctly: that machinery earns its cost at entity counts and cardinality
+this game doesn't have, and that verdict stands. What these two precedents
+change is the *boundary advice for new capability domains*: §6.2's minimal
+core inventory is itself already a small, hand-rolled instance of this exact
+principle, scoped to one domain (`ModuleDef`/`ModuleSystem`/`ActionSlots` =
+components + a system, for movement-flavored abilities only). When a
+genuinely new domain arrives — crafting, say — the West/Ford answer is: it
+gets its **own** small component-shaped state and its **own** system, living
+in its own `Features/Crafting/` folder, talking to Core only through the
+existing event/state contract (§4.3) — it does not get bolted onto
+`ActionSlots` as a fourth slot kind, and `ModuleDef` does not grow a
+`craftingRecipe` field. Run §6.2's Open-Closed test on it: adding crafting
+should mean *creating* `Features/Crafting/*`, zero edits to
+`Core/ModuleDef.cs` or `Core/ActionSlots.cs`.
+
+> **Compose independent capability domains as their own component-shaped
+> state plus their own system, wired to Core only through events/state —
+> never as more branches inside one actor's action-slot table.**
+
 ---
 
 ## 3. The Nystrom mapping: these precedents ARE the patterns, combined
@@ -727,7 +822,9 @@ reason, so the judgment transfers:
   *concepts* (slots, grants, modifiers, priority), skip the framework.
 - **ECS / system scheduler.** Solves performance at extreme entity counts and
   composition at extreme cardinality. A house with one robot and one cat has
-  neither. Unity's player loop + one composition root suffices.
+  neither. Unity's player loop + one composition root suffices — keep the
+  *concept* (independent component+system pairs per capability domain, §2.5),
+  skip the framework (no Unity DOTS, no scheduler).
 - **Deep layer stacks.** Crimson Desert needs mount > stance > base because it
   has mounts and stances. The robot's stack is at most active-module > base.
   Keep the *rule written down*, implement it trivially.
@@ -803,6 +900,21 @@ Grounding for each load-bearing claim:
 - **Ryan Hipple, "Game Architecture with Scriptable Objects" (Unite Austin
   2017)** — the Unity-native instantiation of records-as-assets and
   SO event channels; already cited in `design.md`.
+- **Mick West, "Game Object Component System," *Game Programming Gems 6*
+  (2006)** — the public origin point for composition-over-inheritance game
+  object models (Neversoft's Tony Hawk's Pro Skater/Guitar Hero engine);
+  grounds §2.5's message-passing component shape, and is the direct ancestor
+  of Unity's own `GameObject`/`Component`/`SendMessage`.
+- **Tim Ford, "'Overwatch' Gameplay Architecture and Netcode," GDC 2017**
+  (free on the GDC YouTube channel) — the public, documented industrial ECS
+  implementation (pure-data components, query-driven systems); grounds
+  §2.5's stricter composition variant, and is the clearest illustration of
+  "different entity, different component set, same generic systems."
+- **Jason Gregory, *Game Engine Architecture*** (Naughty Dog — Uncharted,
+  The Last of Us; previously Midway, EA) — comprehensive AAA engine text;
+  its runtime-object-model/game-object chapter is the textbook-length
+  version of §2.5. A deeper single reference, not independently load-bearing
+  here the way West/Ford are.
 - **Black Desert skill system** (patch notes / skill UI: Awakening,
   Succession, Absolute skills; mount skills) — the observable evidence for
   §2.1. Internals inferred, flagged as such.

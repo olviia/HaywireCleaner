@@ -1,228 +1,47 @@
-# HaywireCleaner (working title: "Dust & Glory")
+what happens when the player launches the game
 
-A small RPG about a round robot vacuum cleaner that goes haywire — instead of just
-cleaning, it descends into the hidden spaces beneath the house, chasing the household
-pets and uncovering what's underneath everything. Played from the robot's own
-floor-level perspective.
+1. splash screen (why do we need it before loading the title screen?)
+2. title screen where we can
+     2.1. load previous save
+     2.2. start new game
+     2.3. settings
+     2.4. exit
+     2.5. credits
+3. load previous save or start new game - get data, start game with loaded data. maybe load screen like every large game has
+4. settings: general, display, audio, gameplay, key bindings etc. whatever else is needed
+5. when the game is loaded from the save, we go to the state of game which we saved.
+6. when we start new game 
+7. cutscene of a girl buying a bot from underground store. may be with cameras or images sequence, with some text below. or images now but 3d cut will replace it once we hire an animator
+8. here we can chose the appearance of the robot - character creation. and name. at first interation we can only choose robot's color, but when 3d artists create more models, we will be able to switch parts of it, when they are designed
+9. girl unpacks the bot at home - still cutscene
+10. bot wakes up on it's doc station. doc station looks like ![img_4.png](img_4.png)
+11. doc station is empty at the beginning, because nothing is designed yet, but modules can be added to dock station. 
+12. dock station is a hole in a wall with rollet. when we come near it, there is a laser that security checks that this is the correct bot. like scanner of eye. then rollet opens, and we can go inside. then bot automatically moves to the charging station and begins charging. the mode switches to where we can click with mouse on different ui interfaces and modules that will be designed later. 
+13. after waking up we get some information like in cyberpunk beginning, like the bot's software is not right, and as if there is a virus, or something like that. and that the bot gains consciousness. 
+14. the whole story will be written later. 
+15. with some animation and visual effects we gain our first main quest: learn what happened.
+16. and a subquest: go outside
+17. here we get a tutorial where we learn how to move, how to interact with doors
+18. we open the doors and see the room. and we get a minimap in bottom right corner that is completely in fog of war now. it will open when we move. when the layout of the learned room is changed, we react how the standard robot reacts when encounters new objects: the map gets fog of war again in the zone that was changed.
+19. we see the patches of dirt or the dusty floor. we get an animation that the software inside us is confused because it is designed to clean, and we get this urge, but we dont understand why
+20. we get 'go outside quest' completed, and to our main quest we get some information like in baldurs gate3 that we got unexplainable urge to clean
+21. we get a subquest to clean the room
+22. when we go, the floor behind us becomes clean. animation plays to show us the clean path behind us
+23. then we get something like a dirt patch, and we have to interact with it like with doors to clean it. animation of very quick sucking plays with vfx. it was tested in the first prototype and this immediate action is very satisfying. 
+24. we get a 'ding' + 1 dust patch collected ui to the right of us
+25. tutorial how to use the interface appears
+26. we see 1 patch of dust in the inventory. 
+27. we close the inventory and start cleaning the room. 
+28. after some time cleaning we get a ding that our dust collector is full and we get a quest to return to the base
+29. we dont leave the clean marks anymore and can't collect dirt patches.
+30. we get to the base, bot automatically begins to charge. we get the information that battery is like 70% and that is important to keep track of the battery. the indicator of our battery appears on our UI and will stay there from now on
+31. we get a prompt to empty the dust collector and there has to be designed a bin in the room where goes dust, then after some accumulation it can be compacted to dust patch. on the fist offload it goes to maybe 3 percent to the dust patch. 
+32. we get a 'ding' that we are refreshed and we go outside again to continue the quest
 
-Tagline: "Crimson Desert, but sparkly cleanness."
+33. the whole main quest line compressed into a short story is: in another room we find the box where we came from. there we get a thought maybe to go to place where we were bought to get more information. we find guarantee things, and decide to stop cleaning and even bring more dust from far places to pretend that we are broken. then we are taken to the shop where we were bought. there we wait for the night, where the worker goes home. and ransake his place. we cannot login to computer because we dont have the password. but we find the invoice from the manufacturer. we store this information. alongside we steal what we can. we return home. there at night we steal the phone from our girl. unlock it with her finger, browse the internet, find the information about the manufacturer. bring phone back, pretend it was cat. then we think how to go there. we dont want to go ourselves because we kinda like our nice home. so we are crafting a small drone with the only functionality to have a hand and move. we order delivery company from our house to the manufacturer company and send our bot in our box. there on the place there is some sort of a platformer to listen in and to find their letters or computers. then send the info back home. The information has to reveal something, and it has to conclude the first part of the story
+34. overall main quest has a long duration with a lot of sidequests along the way
+35. the drone also has charge time, and we have to move from socket to socket, charge and move further. when it charges, we switch back to the main character cleanbot
+34. as a side quest after we browsed the phone of our girl, we decide that we want the internet for ourselves in our base. we rearrange wires, and get the internet for us.
+35. as side achievement, we have a cat living with us, and we can place a cucumber behind it, then it will jump high. also we can sneakily tug it's tail. 
 
-## Genre & feel
-
-RPG, not a puzzle/strategy game. The premise (vacuum, house) is the skin; the goal is
-for it to feel as weighty as "a humanoid in an open world," compressed into a small,
-lived-in space. What carries that weight at small scale:
-
-- **Earned growth with consequence** — upgrades genuinely reopen/reframe places you
-  already explored, not just unlock new areas.
-- **A world that reacts to you** — dirt rebuilds, objects get moved, pets do pet
-  things (a dog sheds more if neglected, a kid drops a box in your path, a cat claims
-  your favorite route and blocks half your view with its tail).
-- **Quests that make you care about specific places**, not just waypoints.
-
-This is "Metroidvania in spirit, not in size": ONE small, dense, fully handcrafted
-space. No procedural generation, no luck-based systems.
-
-## The core loop
-
-**seek** (a goal pulls you somewhere) → **clean** (the sparkly payoff) → **find** (an
-optional detour reward off the path) → **grow** (earn a module) → the new module
-**reopens** the space you already explored.
-
-Standard challenge → action → reward triad, with growth feeding back into the space
-you already know. This loop *is* the game; everything else is meta layered on later.
-
-## MVP scope
-
-The core loop (above) is validated — two prototypes confirmed it feels right. The
-remaining unknown isn't "is this fun," it's "does the architecture hold across a
-whole game's worth of systems." MVP is therefore a **walking skeleton** (Cockburn):
-every system in the player-facing flow written out in `docs/designers vision.md`
-(splash → title → save/load → settings → new game → cutscene → tutorial → core
-loop → return-to-base) exists and is wired end-to-end through Core, each at
-minimal/stub depth. Breadth now, depth later — see
-`docs/architecture-foundations.md` for why stub-now/enrich-later doesn't require
-reopening the seams between systems.
-
-**Content scope** (depth/quantity — separate axis from the above, can grow without
-touching the skeleton):
-
-- ONE small handcrafted house, 3-4 rooms. Authored once — this is the entire "world."
-- THREE modules max, each a tangible EARNED ability that reopens cleaned areas:
-  start = open floor only → slim mode (fit under furniture) → one more (suction OR
-  climb). Depth comes from **module × space** combinations, not module count.
-- ONE renewable mess source: a single shedding cat — texture that re-dirties the
-  house, not a chase mechanic.
-- A minimal main-quest/subquest hierarchy (per `docs/designers vision.md`'s
-  opening sequence), not a full authoring-driven quest system.
-
-**Deferred past v1** (content, not systems — the systems above exist as stubs
-regardless): decoration, trading, economy, full story/dialogue beyond the opening,
-multiple pets, chase mechanic, additional rooms/modules beyond the above. The goal
-is a real RPG, small in scope — these are likely to come back once the skeleton is
-proven, not permanently cut.
-
-## Hard constraints (filter every decision through these)
-
-- Growth must feel EARNED — skill/knowledge only. **No luck, gacha, roguelike
-  drafting, or casino/compulsion mechanics.** Hard boundary.
-- Embodied character moving and interacting — not a card/menu game.
-- **Spine-and-detour**: a goal pulls you through space, with optional detours worth
-  taking. Pure open exploration bores the designer; pure linear corridors too. The
-  game lives in the tension between "go finish the goal" and "ooh, what's that."
-- Small enough for one person to finish.
-- Depth over complexity: meaningful play PER RULE, not number of systems.
-
-## Resolved design questions
-
-**Where does the depth live — spatial discovery vs. systemic routing?**
-Resolved: **spatial discovery** (Rumu-shaped). The fun comes from exploring a real,
-lived-in house and getting better at navigating it — content lives in *places* you
-uncover, gated by what your robot can currently do. (Systemic routing — depth via
-optimizing abstract paths/layouts — was considered and rejected: it would require
-either procedural variety or heavy replayability to stay interesting, both of which
-conflict with the "handcrafted, no procgen" constraints.)
-
-Architectural implication: the core data model is a graph of authored spaces, each
-carrying dirt/discovery/access state, gated by owned modules. No simulation/pathing
-layer needed — plain state objects + content authoring, not algorithmic complexity.
-
-## Design references / vocabulary in use
-
-- Core gameplay loop = challenge → action → reward triad
-- Daniel Cook, *The Chemistry of Game Design* — skill atoms / skill chains (model for
-  ability-gated earned growth; closest theory to this design)
-- Raph Koster, *A Theory of Fun* — fun = learning a pattern; boredom = nothing left to
-  learn (why the loop must deepen, not just repeat)
-- Sid Meier — a game is "a series of interesting decisions" (the depth test)
-- Mark Brown / GMTK — applied Metroidvania + rewarding-exploration design
-- **MDA framework** (Hunicke, LeBlanc, Zubek — *MDA: A Formal Approach to Game
-  Design and Game Research*, 2004): Mechanics produce Dynamics produce Aesthetics;
-  design backward from the intended Aesthetic. **This is the working tool for
-  deciding which RPG systems (inventory, stats, appearance, quests, ...) actually
-  belong in this game**: for each candidate system, trace whether it produces a
-  Dynamic that serves one of the stated Aesthetics below — "epic feeling of growth
-  and consequence," "dopamine of dirty-to-clean as discovery," "feels like a
-  serious RPG despite the premise." If the chain traces cleanly, the system is
-  foundational and worth building deliberately. If it doesn't, it's genre
-  furniture inherited from the "RPG" label, not something *this* game's experience
-  needs — at least not yet.
-
-## About the developer
-
-~7 years in games/software (tech art on Star Trek Online, asset QC in CryEngine,
-currently building XR broadcast systems in Unity/C# — NDI, WebRTC, OBS WebSocket,
-Netcode). Strong on systems, architecture, shaders, pipelines; C++ on CV. Primary
-stack is Unity + C#. Vision-first, not mechanics-first — wants design settled before
-committing to architecture. Explicitly leaving behind a prior project that became
-spaghetti under deadline pressure; this time wants structure from the start —
-**but informed by a felt prototype, not assumptions** (see Process below).
-
-## Architecture philosophy: build a skeleton that absorbs iteration
-
-*See `docs/architecture-foundations.md` for the full treatment — what "Core" is,
-how it differs from "modules"/"features," and how this maps onto Nystrom's Game
-Programming Patterns plus real precedents (Creation Engine, Pearl Abyss-style
-ability layering). This section stays as the short summary.*
-
-Game design at this scale is necessarily iterative — you cannot fully predict what
-will be fun or what systems the game will need before playing it (this is well
-documented; "100-page design doc written before any prototype" is a largely
-abandoned approach precisely because most of its guesses turn out wrong once played).
-So the architecture's job isn't to anticipate every future feature — it's to be
-**built so that what iteration reveals can be absorbed without rewrites.**
-
-The proven principle for this (Parnas, *On the Criteria To Be Used in Decomposing
-Systems into Modules*, 1972): you usually can't predict the *specific* change
-coming, but you usually CAN predict the *category* of thing likely to change —
-and that's enough. Identify each such axis, and hide it behind a stable boundary
-so change within it never ripples outward. Apply this *targeted* — only where an
-axis is actually identified, not everywhere (over-applying it produces
-over-engineered mush, which is its own form of spaghetti).
-
-**Axes of change identified so far, and the technique that fits each:**
-
-- **New modules / abilities, new obstacle types** → *data-driven content*: each is
-  a small data asset (Unity ScriptableObject) plugging into one generic system,
-  rather than a code branch per type. Adding one means authoring an asset, not
-  writing new code. (Reference: Ryan Hipple, "Game Architecture with Scriptable
-  Objects.")
-- **Systems that will arrive later** (inventory, quests-as-system, stats — per the
-  MDA pass below) → *event-driven communication* (the Observer pattern /
-  Open-Closed Principle, Meyer 1988): the core loop emits events ("area cleaned,"
-  "item picked up," "module acquired") without knowing who listens. A later system
-  just subscribes — existing code is never touched to add it.
-- **Mechanic feel that will get tuned through play** (move speed, clean radius,
-  battery drain, dirt regrowth rate) → *tunable values*: numbers live as data/config
-  the system reads, not constants baked into code, so tuning is "change a number,"
-  not "edit and recompile."
-- **Everything else** — write it as plain, direct code. Targeted hiding only where
-  an axis is actually identified; plain code is the easiest thing to read, debug,
-  and refactor later if it turns out to need a boundary after all.
-
-## Worked example: classifying behaviors, not nouns
-
-Important clarification that wasn't obvious at first: the four buckets above
-(data-driven content / event-driven / tunable value / plain code) **don't apply to
-whole nouns** ("the robot," "inventory") — they apply to *individual behaviors* a
-noun has. A single noun is normally a mix of all four. Trying to put "the robot" as
-a whole into one bucket is the wrong move and the source of the "I don't know which
-one it is" feeling.
-
-**The test for "is this behavior an event":** *Could something else in the game
-plausibly need to know this happened — even if that something doesn't exist yet?*
-If yes → raise it as an event; the robot doesn't need to know who's listening, and a
-future system (inventory, quest tracker, stats) can subscribe later without the
-robot ever changing. If no → it's just a method call, write it directly.
-
-**Worked example — breaking "the robot" into its behaviors:**
-
-- *Moves in response to input* → plain code (the mechanism is stable); the speed
-  number is a tunable value.
-- *Cleans dirt on contact/action* → plain code mechanism; possibly a tunable number
-  (suction amount, radius).
-- *Carries modules/abilities* → data-driven content. Each module is a small asset;
-  the robot just asks "do I have capability X?" New module = new asset, not new code.
-- *Announces things that just happened* ("cleaned a spot," "picked something up,"
-  "ran out of battery") → event-driven (publisher side). Nothing subscribes yet
-  (inventory/quests don't exist) — that's fine. You raise the event because you can
-  *foresee* something will eventually care, not because a subscriber exists today.
-- *Reacts to being switched off / reset* → event-driven (subscriber side) — reacts
-  to an external trigger (human turns it off → resets, drops carried items). This is
-  where the "turned off / inventory thrown away" mechanic lives architecturally.
-
-Net result for "the robot": **mostly plain code that does its job, plus a few places
-it announces things (publisher) and one place it reacts to an outside trigger
-(subscriber).** That's a correctly-scoped v1 robot, not an under-designed one — most
-of "moving and cleaning" genuinely is just straightforward code.
-
-**Open task — apply the same breakdown (list behaviors, then classify each) to:**
-modules/upgrades, obstacles (cat tail, boxes, fur), inventory, quests, dirt patches.
-
-## Design/architecture process
-
-1. ~~Resolve spatial-vs-systemic fork~~ — done, see above.
-2. **Decide which RPG systems this game actually needs** — using MDA (above).
-   In practice now driven by `docs/designers vision.md`: the full player-facing
-   flow, written scene-by-scene, is the source for which systems exist. The MDA
-   test ("does this serve a stated Aesthetic, or is it inherited genre furniture?")
-   still applies per-system as each is built.
-3. **Build a walking skeleton** (Cockburn) — every screen/system from
-   `docs/designers vision.md`'s flow, wired end-to-end through Core, at minimal
-   depth. Sequence: GameFlow seam (screen state machine) → splash → title →
-   save/load → settings → new game/cutscene → tutorial → core loop (already
-   prototyped, now rewired through Core instead of prototype code).
-4. Set up architecture using the axes-of-change mapping above and
-   `docs/architecture-foundations.md`'s core inventory (events, capability tags,
-   attributes, game state, action slots, GameFlow): data-driven assets for
-   modules/obstacles/cutscenes, events for cross-system communication, tunable
-   values for anything play will need to adjust, plain direct code for everything
-   else.
-5. Playtest the skeleton end-to-end (splash through the first "ding") before
-   deepening any one system's content.
-
-Companion docs: `docs/architecture-foundations.md` (what Core is, Nystrom/Parnas
-mapping), `docs/designers vision.md` (the flow the skeleton is built from),
-`docs/pre architectural investigation.md` (early raw notes).
-
-For current status and active work, see `docs/plan.md`.
+here the detailed vision finished, and more quests and storyline has to be written
