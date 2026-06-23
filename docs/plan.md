@@ -37,6 +37,9 @@ make cutscene images slighty longer
 
 todo this sprint dev:
 - player module
+  - swappable dummy
+  - modules that i drop on the dummy that define it's behaviour
+  - figure out how modules affect animations on the dummy? and shrinking/changing its mesh?
 ◻ Build minimal Settings screen
 - Add audio minimal sounds
 
@@ -48,3 +51,4 @@ done dev:
 - ◻ Define Core/SceneState seam (Bootstrap, SceneStateMachine, SceneLoader)
 - ◻ Build minimal Title screen (first GameFlow seam proof)
 - ◻ Design data-driven Cutscene system (CutsceneDef + player)
+- start of input: move and interact for player

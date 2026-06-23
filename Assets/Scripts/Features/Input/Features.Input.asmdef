@@ -1,0 +1,3 @@
+{
+  "name": "Features.Input","references": ["Core", "Unity.InputSystem"]
+}
