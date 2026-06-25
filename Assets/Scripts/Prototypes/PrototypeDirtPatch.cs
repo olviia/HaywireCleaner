@@ -1,47 +1,47 @@
-using System;
-using Prototypes;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
-public class PrototypeDirtPatch : MonoBehaviour
+namespace Prototypes
 {
-
-    public bool isInRange;
-    public bool _isCleaned;
-    [SerializeField] private GameObject collectSymbol;
-    [SerializeField] private ParticleSystem particles;
-    [SerializeField] private PrototypeSliderDirtCollected slider;
-    [SerializeField] private PrototypeBeads beads;
-
-
-    // Update is called once per frame
-    void Update()
+    public class PrototypeDirtPatch : MonoBehaviour
     {
-        if (isInRange && !_isCleaned)
+
+        public bool isInRange;
+        public bool _isCleaned;
+        [SerializeField] private GameObject collectSymbol;
+        [SerializeField] private ParticleSystem particles;
+        [SerializeField] private PrototypeSliderDirtCollected slider;
+        [SerializeField] private PrototypeBeads beads;
+
+
+        // Update is called once per frame
+        void Update()
         {
-            collectSymbol.SetActive(true);
+            if (isInRange && !_isCleaned)
+            {
+                collectSymbol.SetActive(true);
+            }
+            else
+            {
+                collectSymbol.SetActive(false);
+            }
         }
-        else
+
+        public void Clean()
         {
             collectSymbol.SetActive(false);
+            transform.GetComponent<MeshRenderer>().enabled = false;
+            particles.Play();
+            _isCleaned = true;
+            slider.OnDirtCleaned();
+
+            beads.CheckBead(this);
         }
-    }
 
-    public void Clean()
-    {
-        collectSymbol.SetActive(false);
-        transform.GetComponent<MeshRenderer>().enabled = false;
-        particles.Play();
-        _isCleaned = true;
-        slider.OnDirtCleaned();
-
-        beads.CheckBead(this);
-    }
-
-    public bool CanBeCleaned()
-    {
-        return isInRange && !_isCleaned;
-    }
+        public bool CanBeCleaned()
+        {
+            return isInRange && !_isCleaned;
+        }
     
 
+    }
 }

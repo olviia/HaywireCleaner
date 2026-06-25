@@ -1,5 +1,6 @@
 using System;
 using Core;
+using Core.Player;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -33,13 +34,13 @@ namespace Features.Input
         //continious actions go into update
         void Update()
         {
-            PlayerCommands.SetMove(move.ReadValue<Vector2>());
+            ModuleInput.RaiseMove(move.ReadValue<Vector2>());
         }
 
         //discrete actions are raising events
         void OnInteractPerformed(InputAction.CallbackContext context)
         {
-            PlayerCommands.RaiseInteract();
+            ModuleInput.RaiseInteract();
         }
     }
 }

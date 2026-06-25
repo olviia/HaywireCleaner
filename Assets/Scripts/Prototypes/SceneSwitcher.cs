@@ -1,12 +1,15 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-public class SceneSwitcher : MonoBehaviour
+namespace Prototypes
 {
-    [SerializeField] private string scene;
-
-    public void GoToScene()
+    public class SceneSwitcher : MonoBehaviour
     {
-        SceneManager.LoadScene(scene);
+        [SerializeField] private string scene;
+
+        public void GoToScene()
+        {
+            SceneManager.LoadScene(scene);
+        }
     }
 }

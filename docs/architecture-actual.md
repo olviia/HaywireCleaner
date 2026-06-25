@@ -182,3 +182,111 @@ Expected result: invoked only in `CutsceneDirector.cs`, subscribed to only in `C
 | Assembly | References |
 |---|---|
 | `Cutscenes` | `Core`, `Unity.Timeline` |
+
+---
+
+# Player Possession & Module Input Architecture
+
+**Status:** Implemented for one actor and one module (`WalkModule`). No
+second possessable character exists yet. Nothing currently triggers initial
+possession automatically — a manual `[ContextMenu]` test method is the only
+way an actor becomes controlled right now. `TagSet` has no methods yet, so
+module-blocking tags aren't usable yet.
+**Scope:** which actor currently receives input, and how a received input
+verb reaches whichever modules are attached to that actor
+
+## 1. Overview
+
+`Actor` (plain C#, deliberately no `MonoBehaviour`) holds a `TagSet` and a
+list of `IModule`s — it's the thing that gets possessed. `Posession` tracks
+which `Actor` is currently possessed and which others are merely available.
+`ActorHost` is the one `MonoBehaviour` that gives an `Actor` a place in the
+scene; modules find their owning `Actor` by walking up to it, never via a
+hand-assigned reference. Raw input becomes a typed `Intent` via `ModuleInput`,
+and only the currently-possessed `Actor` is ever subscribed to receive one —
+modules belonging to a non-possessed actor are never called at all, not even
+to check whether they should react.
+
+## 2. Components
+
+| Component | Location | Responsibility | Used by |
+|---|---|---|---|
+| `IPosessable` | `Core/Player/IPosessable.cs` | Contract for anything that can be possessed: `OnPosessed`/`OnUnposessed` | `Actor`, `Posession` |
+| `Posession` | `Core/Player/Posession.cs` | Static. Tracks `current` (not yet publicly exposed) and `Available`; `Register`/`Unregister` (called by `ActorHost.OnEnable`/`OnDisable`); `Posess(next)` unpossesses whoever was current, then possesses `next` | `ActorHost` |
+| `Actor` | `Core/Player/Actor.cs` | Plain C#, implements `IPosessable`. Owns a `TagSet` and the `IModule` list. On possessed, subscribes its `Send` method to `ModuleInput.OnIntent`; on unpossessed, unsubscribes. `Send` builds a `Command` and forwards it only to modules whose `ReactsTo` includes the incoming `Intent` | `ActorHost` |
+| `ActorHost` | `Core/Player/ActorHost.cs` | `MonoBehaviour` — Core's one physical anchor for an `Actor` in the scene (see Rule 4 on its namespace). Registers/unregisters its `Actor` with `Posession` on enable/disable. Carries a `[ContextMenu("Possess This")]` test method that calls `Posession.Posess(Actor)` directly — currently the only way anything becomes possessed | Modules, via `GetComponentInParent` |
+| `TagSet` | `Core/Player/TagSet.cs` | Intended to hold state tags an `Actor` currently carries (e.g. `"Climbing"`) for cross-module blocking — class exists, no members implemented yet | `Actor` |
+| `Intent` | `Core/Player/Intent.cs` | Closed enum of input verbs: `Move`, `Interact` | `ModuleInput`, `Command`, `IModule.ReactsTo` |
+| `Command` | `Core/Player/Command.cs` | `readonly struct` — `WhatToDo` (`Intent`) and `ExtraInfo` (`Vector2`, the payload) | `Actor.Send`, `IModule.Handle` |
+| `ModuleInput` | `Core/Player/ModuleInput.cs` | Static. `RaiseMove(Vector2)`/`RaiseInteract()` raise `OnIntent` | `InputReader` (raises), `Actor` (subscribes only while possessed) |
+| `IModule` | `Core/Player/IModule.cs` | Contract for a module: `ReactsTo` (`IEnumerable<Intent>`, declared data — not a runtime check) + `Handle(Actor owner, Command cmd)` | `WalkModule` |
+| `InputReader` | `Features/Input/InputReader.cs` | `MonoBehaviour`. Reads the Input System's `Player` action map; calls `ModuleInput.RaiseMove` every frame from `Update`, `ModuleInput.RaiseInteract` from the `Interact` action's `performed` callback | — |
+| `WalkModule` | `Features/Modules/WalkModule.cs` | `MonoBehaviour, IModule`. Finds its `ActorHost` via `GetComponentInParent` in `Awake`, self-registers in `OnEnable`/removes itself in `OnDisable`, reacts to `Intent.Move` by setting a `Rigidbody`'s `linearVelocity` | — |
+
+## 3. API
+
+| Method / Event | Owner | Purpose |
+|---|---|---|
+| `Posession.Posess(IPosessable next)` | `Posession` | Make `next` the currently-controlled actor; unpossesses whoever was current first |
+| `Posession.Available` | `Posession` | Query which actors are currently registered (no public way to query *who's currently possessed* yet — see Rule 6) |
+| `Posession.Register` / `Unregister` | `Posession` | Add/remove an actor from `Available` — called by `ActorHost.OnEnable`/`OnDisable`, never by content |
+| `ModuleInput.OnIntent` (`Action<Intent, Vector2>`) | `ModuleInput` | Raised on every raw input sample; only the possessed `Actor` is ever subscribed |
+| `Actor.RegisterModule` / `RemoveModule` | `Actor` | A module adds/removes itself from its owner's dispatch list — called from the module's own `OnEnable`/`OnDisable` |
+
+## 4. Rules
+
+1. **Nothing is possessed automatically yet.** There is no code path that calls `Posession.Posess(...)` on startup — the only trigger right now is `ActorHost`'s `[ContextMenu("Possess This")]`, run manually from the Inspector during Play. Don't assume a fresh scene has a controllable character without doing this first.
+2. Modules never read `ModuleInput` directly — only `Actor` subscribes to it, and only while possessed. A module declares what it reacts to via `ReactsTo`; it never checks "am I the possessed one" itself, and is simply never called if it isn't.
+3. A module finds its owner via `GetComponentInParent<ActorHost>()` in `Awake`, never via a hand-assigned Inspector reference — this is what lets the same module component be dropped under any possessable character without per-prefab wiring.
+4. **Known inconsistency:** `ActorHost.cs` physically lives under `Core/Player/` (and so compiles into `Core.asmdef`) but is declared `namespace Features.Character` — matching neither its folder nor the `Features.Player.Characters` asmdef (which currently has nothing in it). `ActorHost` was deliberately placed in Core despite being a `MonoBehaviour` — the doc comment in the file itself says so — so the namespace should read `Core.Player` to match where it actually compiles. Not yet fixed.
+5. `Features/Modules` (where `WalkModule` lives) has no `.asmdef` of its own, so nothing mechanically stops it from referencing other Features directly — the dependency-direction test (architecture-foundations.md §6.2) isn't enforced here the way it is for `Cutscenes`/`Features.Title`/`Features.Player.Characters`.
+6. `Posession` exposes `Available` but not who's currently possessed — fine while nothing outside `Posession`/`Actor` needs to query it, but the first feature that does (camera switching, a UI indicator) will need a public `Current` accessor added.
+7. `Posession.OnPossessionChanged` is declared but never raised inside `Posess` — dead until something needs to react to a switch.
+8. `TagSet` has no `Add`/`Remove`/`HasAny` implemented — any module's blocking-tag check is a TODO, not yet functional.
+
+## 5. Verification
+
+```
+grep -rn "ModuleInput\." Assets/Scripts --include=*.cs
+```
+
+Expected result: `RaiseMove`/`RaiseInteract` invoked only in `InputReader.cs`; `OnIntent` subscribed to only in `Actor.cs`.
+
+## 6. Usage example
+
+```csharp
+// a module, self-registering, declaring what it reacts to
+public class WalkModule : MonoBehaviour, IModule
+{
+    ActorHost host;
+    Rigidbody rb;
+    [SerializeField] int speed;
+
+    void Awake()
+    {
+        host = GetComponentInParent<ActorHost>();
+        rb = host?.GetComponent<Rigidbody>();
+    }
+
+    void OnEnable()  => host.Actor.RegisterModule(this);
+    void OnDisable() => host.Actor.RemoveModule(this);
+
+    static readonly Intent[] reactsTo = { Intent.Move };
+    public IEnumerable<Intent> ReactsTo => reactsTo;
+
+    public void Handle(Actor owner, Command cmd)
+    {
+        var direction = cmd.ExtraInfo;
+        rb.linearVelocity = new Vector3(direction.x, 0, direction.y) * speed;
+    }
+}
+```
+
+## 7. Assembly dependencies
+
+| Assembly | References |
+|---|---|
+| `Core` (includes `Core/Player/*`) | none |
+| `Features.Input` | `Core`, `Unity.InputSystem` |
+| `Features.Player.Characters` | `Core` — currently empty; `ActorHost.cs` compiles into `Core` instead (Rule 4) |
+| — (`Features/Modules`) | no asmdef; compiles into the default `Assembly-CSharp` (Rule 5) |

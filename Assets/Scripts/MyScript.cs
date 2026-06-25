@@ -1,7 +1,4 @@
-namespace DefaultNamespace
+public class MyScript
 {
-    public class MyScript
-    {
         
-    }
 }

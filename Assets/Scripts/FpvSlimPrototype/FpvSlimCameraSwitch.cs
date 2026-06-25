@@ -1,3 +1,4 @@
+using Prototypes;
 using UnityEngine;
 
 namespace FpvSlimPrototype
