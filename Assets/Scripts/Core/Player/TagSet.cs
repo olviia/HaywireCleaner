@@ -10,6 +10,7 @@ using System.Collections.Generic;
      public enum Tag
      {
          None        = 0,
+         Interacting = 1 << 0,
          //example:
          // Stunned     = 1 << 0,
          // Frozen      = 1 << 1,
