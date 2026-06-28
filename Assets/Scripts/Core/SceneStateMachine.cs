@@ -5,7 +5,8 @@ namespace Core
 
     public enum GameScene
     {
-        Title, 
+        Title,
+        DockStation,
         Gameplay, 
         Prototype1,
         Prototype2

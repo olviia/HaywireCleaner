@@ -16,14 +16,14 @@ namespace Core
         {
             WorldState.NewSave();
             OnNewGameRequested?.Invoke();
-            SceneStateMachine.ChangeSceneTo(GameScene.Gameplay);
+            SceneStateMachine.ChangeSceneTo(GameScene.DockStation);
         }
         
         //maybe load game will carry something different
         public static void LoadGame()
         {
             OnLoadGameRequested?.Invoke();
-            SceneStateMachine.ChangeSceneTo(GameScene.Gameplay);
+            SceneStateMachine.ChangeSceneTo(GameScene.DockStation);
         }
     }
 }

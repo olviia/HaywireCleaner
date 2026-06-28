@@ -28,6 +28,7 @@ namespace Features.Input
         void OnDisable()
         {
             interact.performed -= OnInteractPerformed;
+            player.Disable();
         }
 
         

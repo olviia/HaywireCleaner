@@ -32,13 +32,23 @@ to do community:
 - 
 
 in progress dev:
+- awakening sequence - dizzying overlay + quest reveal
+- meaning we need to introduce quest system now. and build base ui for the quest system
+- tutorial prompt
+- leaving the dock station, going to gameplay
+- camera traansition, door animation, scene async loading
+- at the end of door animation, activate preloaded scene
+- charging platform setting 'Charging' tag and removing it when we are not on the platform
+- better, the button says stop charging, and then we can walk, and animation of the door is played, 
+  but the scene is switched when we move to those doors. at the same time the button changes to 'Start charging' and if it is clicked before we leave the dock station, then the camera returns to the static, we
+   cant move the bot again, and the bot moves to the charging station by itself
+
+
 ◻ Build minimal save/load seam (slowly building when other components are added)
 make cutscene images slighty longer
 
 todo this sprint dev:
-- player module
-    - tags
-  - figure out how modules affect animations on the dummy? and shrinking/changing its mesh?
+
 ◻ Build minimal Settings screen
 - Add audio minimal sounds
 
@@ -53,3 +63,6 @@ done dev:
 - start of input: move and interact for player
 -   - swappable dummy
 - modules that i drop on the dummy that define it's behaviour
+- - player module
+    - tags
+- figure out how modules affect animations on the dummy? and shrinking/changing its mesh?

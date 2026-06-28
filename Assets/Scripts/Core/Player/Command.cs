@@ -18,11 +18,20 @@ namespace Core.Player
     {
         public readonly Intent WhatToDo;
         public readonly Vector2 ExtraInfo;
+        public readonly Transform Position;
 
         public Command(Intent whatToDo, Vector2 extraInfo = default)
         {
             WhatToDo = whatToDo;
             ExtraInfo = extraInfo;
+            Position = null;
+        }
+
+        public Command(Intent whatToDo, Transform position)
+        {
+            WhatToDo = whatToDo;
+            ExtraInfo = default;
+            Position = position;
         }
     }
 }

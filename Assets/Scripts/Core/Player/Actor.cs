@@ -17,6 +17,7 @@ namespace Core.Player
         public void OnPosessed() => ModuleInput.OnIntent += Send;
         public void OnUnposessed() => ModuleInput.OnIntent -= Send;
 
+        //for the input command
         void Send(Intent intent, Vector2 extraInfo)
         {
             var cmd = new Command(intent, extraInfo);
@@ -25,6 +26,19 @@ namespace Core.Player
                 if (module.ReactsTo.Contains(intent))
                 {
                     module.Handle(this, cmd);
+                }
+            }
+        }
+        
+        //for the command given by something in the world
+        public void Dispatch(Intent intent, Transform transform)
+        {
+            var cmd = new Command(intent, transform);
+            foreach (var module in modules)
+            {
+                if (module.ReactsTo.Contains(intent))
+                {
+                    module.Handle(this,cmd);
                 }
             }
         }

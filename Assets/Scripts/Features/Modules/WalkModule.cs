@@ -21,8 +21,9 @@ namespace Features.Modules
 
         private float moveInput;
         private float rotateInput;
+        private bool canMove;
         
-        private static readonly Tag BlockedBy = Tag.Interacting;
+        private static readonly Tag BlockedBy = Tag.Interacting | Tag.Charging;
         
         private static readonly Intent[] reactsTo = { Intent.Move };
         public IEnumerable<Intent> ReactsTo=>reactsTo;
@@ -39,24 +40,25 @@ namespace Features.Modules
         {
              if (owner.Tags.HasAny(BlockedBy))
              {
-
-                 moveInput = rotateInput = 0f;
+                 canMove = false;
                  return;
              }
-
+                
+             canMove = true;
              moveInput = cmd.ExtraInfo.y;
              rotateInput = cmd.ExtraInfo.x;
         }
 
         private void FixedUpdate()
         {
-            rb.angularVelocity = Vector3.up * (rotateInput * rotationSpeed * Mathf.Deg2Rad);
+            if (!canMove) return;
+            
+            Quaternion delta = Quaternion.Euler(0, rotateInput * rotationSpeed * Time.fixedDeltaTime, 0);
+            rb.MoveRotation(rb.rotation * delta);
 
             float movement = moveInput >= 0 ? speed : reverseSpeed;
             Vector3 forward = transform.forward * (moveInput * movement);
             rb.linearVelocity = new Vector3(forward.x, rb.linearVelocity.y, forward.z);
-
-            Debug.Log($"inputs: {moveInput} / {rotateInput}  vel:{rb.linearVelocity}");
         }
     }
 }

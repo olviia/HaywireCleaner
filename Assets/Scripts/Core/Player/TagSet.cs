@@ -11,10 +11,19 @@ using System.Collections.Generic;
      {
          None        = 0,
          Interacting = 1 << 0,
-         //example:
-         // Stunned     = 1 << 0,
-         // Frozen      = 1 << 1,
+         Charging = 1 << 1,
+         // 1 << N is a bit shift — it places a single 1 bit at    
+         // position N in the number, so each tag value has its own
+         // unique bit:
          //
+         // 1 << 0  =  00000001  =  1
+         // 1 << 1  =  00000010  =  2
+         // 1 << 2  =  00000100  =  4
+         // 1 << 3  =  00001000  =  8
+         //
+         // The point is that because each tag owns exactly one    
+         // bit, the bitwise & and | in HasAny/HasAll can check and
+         // combine multiple tags at once without them colliding. 
      }
      
      /// <summary>

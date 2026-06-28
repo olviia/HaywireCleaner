@@ -8,8 +8,16 @@ namespace Core.Player
     /// </summary>
     public enum Intent
     {
-        Move,
-        Interact
+        //where to automatically go
         //add more when there is new input in PlayerCommand
+        
+        Move,
+        Interact,
+        
+        
+        
+        Charge,
+        StopCharge
+        
     }
 }
