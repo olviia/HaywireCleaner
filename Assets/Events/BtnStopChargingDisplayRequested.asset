@@ -10,5 +10,5 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 38f68c4d58534b2e9e986acf7b8d100b, type: 3}
-  m_Name: onBtbStopChargingUIDisplayRequested
+  m_Name: BtnStopChargingDisplayRequested
   m_EditorClassIdentifier: Core::Core.UI.UIElementShowHideRequestSO

@@ -39,9 +39,7 @@ in progress dev:
 - camera traansition, door animation, scene async loading
 - at the end of door animation, activate preloaded scene
 - charging platform setting 'Charging' tag and removing it when we are not on the platform
-- better, the button says stop charging, and then we can walk, and animation of the door is played, 
-  but the scene is switched when we move to those doors. at the same time the button changes to 'Start charging' and if it is clicked before we leave the dock station, then the camera returns to the static, we
-   cant move the bot again, and the bot moves to the charging station by itself
+- charging station
 
 
 ◻ Build minimal save/load seam (slowly building when other components are added)
