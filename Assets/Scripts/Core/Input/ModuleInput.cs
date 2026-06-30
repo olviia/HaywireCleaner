@@ -1,10 +1,13 @@
 using System;
+using Core.Player;
 using UnityEngine;
 
-namespace Core.Player
+namespace Core.Input
 {
     /// <summary>
     /// this class wires Command pattern to Actor
+    /// intent event transport
+    /// execution projection
     /// </summary>
     public static class ModuleInput
     {

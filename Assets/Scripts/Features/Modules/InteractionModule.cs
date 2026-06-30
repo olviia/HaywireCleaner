@@ -5,6 +5,11 @@ using UnityEngine;
 
 namespace Features.Modules
 {
+    /// <summary>
+    /// put it under the actor, and add InteractionSensor to it.
+    /// maybe in the future is shoudl be refactored so that interaction sensor
+    /// sits in this module
+    /// </summary>
     public class InteractionModule:MonoBehaviour, IModule
     {
         private ActorHost host;

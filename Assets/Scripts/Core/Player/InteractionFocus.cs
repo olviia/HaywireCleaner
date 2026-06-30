@@ -19,7 +19,7 @@ namespace Core.Player
 
         public void Clear(IInteractable leaving)
         {
-            if(Current == leaving) return;
+            if(Current != leaving) return;
             Current?.OnUnfocus();
             Current = null;
         }

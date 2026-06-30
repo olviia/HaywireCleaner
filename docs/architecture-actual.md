@@ -216,11 +216,11 @@ to check whether they should react.
 | `Actor` | `Core/Player/Actor.cs` | Plain C#, implements `IPosessable`. Owns a `TagSet` and the `IModule` list. On possessed, subscribes its `Send` method to `ModuleInput.OnIntent`; on unpossessed, unsubscribes. `Send` builds a `Command` and forwards it only to modules whose `ReactsTo` includes the incoming `Intent` | `ActorHost` |
 | `ActorHost` | `Core/Player/ActorHost.cs` | `MonoBehaviour` — Core's one physical anchor for an `Actor` in the scene (see Rule 4 on its namespace). Registers/unregisters its `Actor` with `Posession` on enable/disable. Carries a `[ContextMenu("Possess This")]` test method that calls `Posession.Posess(Actor)` directly — currently the only way anything becomes possessed | Modules, via `GetComponentInParent` |
 | `TagSet` | `Core/Player/TagSet.cs` | Intended to hold state tags an `Actor` currently carries (e.g. `"Climbing"`) for cross-module blocking — class exists, no members implemented yet | `Actor` |
-| `Intent` | `Core/Player/Intent.cs` | Closed enum of input verbs: `Move`, `Interact` | `ModuleInput`, `Command`, `IModule.ReactsTo` |
+| `Intent` | `Core/Player/Intent.cs` | Closed enum of command verbs: `Move`, `Interact` (raised from input via `ModuleInput`) plus `Charge`, `StopCharge` (raised from the world via `Actor.Dispatch`) | `ModuleInput`, `Command`, `IModule.ReactsTo`, `Actor.Dispatch` |
 | `Command` | `Core/Player/Command.cs` | `readonly struct` — `WhatToDo` (`Intent`) and `ExtraInfo` (`Vector2`, the payload) | `Actor.Send`, `IModule.Handle` |
-| `ModuleInput` | `Core/Player/ModuleInput.cs` | Static. `RaiseMove(Vector2)`/`RaiseInteract()` raise `OnIntent` | `InputReader` (raises), `Actor` (subscribes only while possessed) |
+| `ModuleInput` | `Core/Input/ModuleInput.cs` | Static. The **execution projection** transport: `RaiseMove(Vector2)`/`RaiseInteract()` raise `OnIntent`. (The display projection is a separate seam — see *Input Routing Architecture*.) | `InputReader` (raises), `Actor` (subscribes only while possessed) |
 | `IModule` | `Core/Player/IModule.cs` | Contract for a module: `ReactsTo` (`IEnumerable<Intent>`, declared data — not a runtime check) + `Handle(Actor owner, Command cmd)` | `WalkModule` |
-| `InputReader` | `Features/Input/InputReader.cs` | `MonoBehaviour`. Reads the Input System's `Player` action map; calls `ModuleInput.RaiseMove` every frame from `Update`, `ModuleInput.RaiseInteract` from the `Interact` action's `performed` callback | — |
+| `InputReader` | `Features/Input/InputReader.cs` | `MonoBehaviour`. The single input adapter (see *Input Routing Architecture*). Owns the `Intent → InputAction` map; pumps `ModuleInput.RaiseMove`/`RaiseInteract` (execution); registers an `InputGlyphProvider` over the same map into `GlyphInput` (display) | — |
 | `WalkModule` | `Features/Modules/WalkModule.cs` | `MonoBehaviour, IModule`. Finds its `ActorHost` via `GetComponentInParent` in `Awake`, self-registers in `OnEnable`/removes itself in `OnDisable`, reacts to `Intent.Move` by setting a `Rigidbody`'s `linearVelocity` | — |
 
 ## 3. API
@@ -290,3 +290,128 @@ public class WalkModule : MonoBehaviour, IModule
 | `Features.Input` | `Core`, `Unity.InputSystem` |
 | `Features.Player.Characters` | `Core` — currently empty; `ActorHost.cs` compiles into `Core` instead (Rule 4) |
 | — (`Features/Modules`) | no asmdef; compiles into the default `Assembly-CSharp` (Rule 5) |
+
+---
+
+# Input Routing Architecture — Execution & Display Projections
+
+**Status:** Implemented for the **Player** context (one action map). `Move` and
+`Interact` are wired end-to-end; the glyph **display** projection is implemented
+for `label` (the `sprite` half of `Glyph` is unwired). No menu / second context
+exists yet — the design is extension-ready, not extended.
+**Scope:** how raw device input becomes a typed `Intent`, and how that *single*
+source fans out to (A) the possessed player and (B) the UI prompt's button glyph.
+
+## 1. Overview
+
+`InputReader` is the one adapter that turns the `Player` action map into a single
+`Intent → InputAction` map, then exposes that map as **two independent
+projections** of the same data:
+
+- **Execution (push)** — intents are broadcast on `ModuleInput`; the possessed
+  `Actor` receives them and dispatches to its modules. (Continues in *Player
+  Possession & Module Input*.)
+- **Display (pull)** — an `InputGlyphProvider` wraps the *same* map and is
+  registered into Core's `GlyphInput`; the UI asks it, by `Intent`, for a `Glyph`
+  (letter/sprite) to draw.
+
+Both projections read one map. Neither Core nor the UI ever sees an `InputAction`
+— only `Intent` goes in and `Glyph` comes out. The Input System package is
+quarantined inside `Features.Input`.
+
+## 2. Components
+
+| Component | Location | Responsibility | Used by |
+|---|---|---|---|
+| `InputReader` | `Features/Input/InputReader.cs` | `MonoBehaviour`. The single input adapter. Builds the `Intent → InputAction` map from the `Player` map; pumps `Move` each frame and `Interact` on `performed` into `ModuleInput` (execution); constructs an `InputGlyphProvider` over the same map and registers it into `GlyphInput` (display); owns the map's enable/disable | — |
+| `ModuleInput` | `Core/Input/ModuleInput.cs` | Static. **Execution** transport: `RaiseMove`/`RaiseInteract` raise `OnIntent(Intent, Vector2)` | `InputReader` (raises), `Actor` (subscribes only while possessed) |
+| `IInputGlyphProvider` | `Core/Input/IInputGlyphProvider.cs` | Core seam for **display**: `Glyph GetGlyph(Intent)` + `event DeviceChanged` | `GlyphInput`, UI |
+| `GlyphInput` | `Core/Input/GlyphInput.cs` | Static Core registry — the query-shaped sibling of `ModuleInput`. `Register(provider)` (by `InputReader`), `Glyphs` getter (by UI); holds one `IInputGlyphProvider` | `InputReader` (registers), UI (reads) |
+| `InputGlyphProvider` | `Features/Input/InputGlyphProvider.cs` | Plain C# (no `MonoBehaviour`). Resolves an `Intent` to a `Glyph` via the map + `GetBindingDisplayString` for the active control scheme; caches per intent; tracks the active device via the static `InputSystem.onActionChange` and raises `DeviceChanged` (clearing the cache) on a scheme switch. `IDisposable`, disposed by `InputReader` | `GlyphInput` |
+| `Glyph` | `Core/Input/Glyph.cs` | `struct` — `label` (string) + `sprite` (`Sprite`). The only input-derived type that crosses into Core/UI | UI |
+| `UIInteractPromptDisplayRequestSO` | `Core/Events/UIInteractPromptDisplayRequestSO.cs` | SO event channel carrying `(localized label, Intent, Transform)`. An interactable raises it on focus/unfocus; the prompt UI listens, then resolves the glyph for that `Intent` from `GlyphInput` | `ChargingStation` (raises), prompt UI (listens) |
+
+## 3. The two routes
+
+**Route A — input → player (execution):**
+
+```
+device → InputReader (Update / performed)
+       → ModuleInput.OnIntent (broadcast)
+       → possessed Actor.Send → Command → modules filtered by ReactsTo
+       → WalkModule (Move → Rigidbody) / InteractionModule (Interact → Focus.Current.Interact())
+```
+
+**Route B — focus → UI prompt (display):**
+
+```
+InteractionSensor focuses an interactable
+       → InteractionFocus.Set → IInteractable.OnFocus
+       → UIInteractPromptDisplayRequestSO.RaiseShow(label, Intent, transform)
+UI then pulls the glyph for that Intent:
+       → GlyphInput.Glyphs.GetGlyph(Intent) → Glyph { label, sprite }
+       → refresh on DeviceChanged
+```
+
+The interaction is split the same orthogonal way: the **sensor** decides *which*
+interactable is focused ("what"); the **`Interact` intent** (Route A) fires
+`InteractionModule`, which acts on whatever is focused ("when"). The world can
+also originate commands back into the actor — `ChargingStation.Interact` calls
+`Actor.Dispatch(Intent.Charge, dockAnchor)`, the world-side sibling of the
+input-side `Actor.Send`.
+
+## 4. Rules
+
+1. The `Intent → InputAction` map lives **only** in `InputReader`. Nothing else
+   maps keys to intents; both projections read this one map.
+2. **Core never references `UnityEngine.InputSystem`.** The middleware stays in
+   `Features.Input`; `InputAction`/`InputControlScheme` must never appear in a
+   Core type's signature — only `Intent` goes in, only `Glyph` comes out.
+3. The UI obtains a glyph **only** from Core (`GlyphInput.Glyphs`), never from
+   `Features.Input`. `InputReader` registers the provider; consumers pull — the
+   same Core-mediated handoff as `ModuleInput`, so neither feature references the
+   other.
+4. `GlyphInput.Glyphs` is `null` until `InputReader.Awake` registers — consumers
+   must null-guard (`GlyphInput.Glyphs?.GetGlyph(...)`) and query at **show** time,
+   not in `OnEnable`.
+5. The display projection is read-only over the binding asset — rebinding a key in
+   the `.inputactions` asset updates both the player's controls and every prompt
+   glyph, with no code change.
+
+## 5. Verification
+
+```
+grep -rn "InputSystem" Assets/Scripts/Core --include=*.cs
+```
+
+Expected: **no matches** — the Input System never reaches Core.
+
+```
+grep -rn "GlyphInput\." Assets/Scripts --include=*.cs
+```
+
+Expected: `Register` only in `InputReader.cs`; `Glyphs` read only in UI consumers.
+
+## 6. How to work with these files
+
+- **Add an input verb** (e.g. `Jump`): add it to `Intent`, add the binding in the
+  `.inputactions` asset, add one `map[...] = FindAction(...)` line + a `Raise…`
+  call in `InputReader`. The glyph side needs **no** change — it reads the map.
+- **Show a prompt on a new interactable:** implement `IInteractable`, and in
+  `OnFocus` raise the prompt SO with the relevant `Intent`. The glyph resolves
+  automatically from `GlyphInput`.
+- **Letters → sprites:** fill `Glyph.sprite` in `InputGlyphProvider.Resolve` using
+  the `GetBindingDisplayString(i, out deviceLayout, out controlPath)` overload to
+  key a sprite table. The UI, which only reads `Glyph`, is unchanged.
+- **Add a menu context (future):** add a *parallel triple* — a reader on the `UI`
+  action map + its own transport (e.g. `MenuInput`) — and switch contexts by
+  enabling/disabling action maps. Do **not** branch `ModuleInput`. The glyph
+  provider can serve any registered context (or add a parallel provider).
+
+## 7. Assembly dependencies
+
+| Assembly | References |
+|---|---|
+| `Core` (`Core/Input`, `Core/Events`) | none |
+| `Features.Input` | `Core`, `Unity.InputSystem` |
+| `Features.UI` (prompt consumers) | `Core` |
