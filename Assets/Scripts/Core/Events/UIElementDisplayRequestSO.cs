@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-namespace Core.UI
+namespace Core.Events
 {
     /// <summary>
     /// analog of unreal WidgetChannel

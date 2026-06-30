@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using Core.Interaction;
 using Core.Player;
-using Features.Character;
 using UnityEngine;
 
 namespace Features.Modules

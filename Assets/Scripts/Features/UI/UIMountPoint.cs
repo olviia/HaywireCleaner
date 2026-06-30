@@ -1,7 +1,8 @@
 using System.Collections.Generic;
+using Core.Events;
 using UnityEngine;
 
-namespace Core.UI
+namespace Features.UI
 {
     /// <summary>
     /// put it on the placeholder where you want to show or hide a prefab on certain
@@ -20,7 +21,7 @@ namespace Core.UI
             request.Show += Mount;
             request.Hide += Unmount;
         }
-
+        
         void OnDisable()
         {
             request.Show -= Mount;

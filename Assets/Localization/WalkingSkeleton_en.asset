@@ -30,6 +30,10 @@ MonoBehaviour:
     m_Localized: "\u0443\u043A\u0440"
     m_Metadata:
       m_Items: []
+  - m_Id: 5354343334535168
+    m_Localized: Charge
+    m_Metadata:
+      m_Items: []
   references:
     version: 2
     RefIds: []

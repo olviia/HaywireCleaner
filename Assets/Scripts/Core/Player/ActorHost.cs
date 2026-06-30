@@ -1,7 +1,6 @@
-using Core.Player;
 using UnityEngine;
 
-namespace Features.Character
+namespace Core.Player
 {
     /// <summary>
     /// even if it is a monobehaviour, this script belongs to core because it wires the

@@ -10,7 +10,7 @@ namespace Core.Player
     public class Actor : IPosessable
     {
         public TagSet Tags { get; } = new();
-        public InteractionFocus Focus { get; } = new;
+        public InteractionFocus Focus { get; } = new();
         private List<IModule> modules = new();
         
         public void RegisterModule(IModule module) => modules.Add(module);

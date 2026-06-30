@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Core.Interaction;
-using Features.Character;
+using Core.Player;
 using UnityEngine;
 
 namespace Features.Interaction

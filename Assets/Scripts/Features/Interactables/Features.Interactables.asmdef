@@ -1,4 +1,4 @@
 {
   "name": "Features.Interactables",
-  "references": ["Core"]
+  "references": ["Core", "Unity.Localization"]
 }
