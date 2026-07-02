@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace Core.Player
@@ -19,5 +20,11 @@ namespace Core.Player
             Posession.Posess(Actor);
         }
 
+        //TODO:
+        //remove when not testing
+        private void Awake()
+        {
+            TestPossess();
+        }
     }
 }

@@ -42,12 +42,16 @@ namespace Features.Interactables
                 actor.Dispatch(Intent.StopCharge, null);
                 requestSO.RaiseHide(stopChargingButtonPrefab);
                 dockCamera.depth = idlePriority;
+                
+                OnFocus(); //show ui prompt again
             }
             else //start charging
             {
                 actor.Dispatch(Intent.Charge, dockAnchor);
                 requestSO.RaiseShow(stopChargingButtonPrefab);
                 dockCamera.depth = livePriority;
+
+                OnUnfocus(); //hide ui prompt
             }
         }
 
