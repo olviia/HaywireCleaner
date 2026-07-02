@@ -12,8 +12,15 @@ namespace Features.Modules
     /// </summary>
     public class InteractionModule:MonoBehaviour, IModule
     {
+        [SerializeField] private float interactRange = 3f;
+        [SerializeField] private float castRadius = 0.3f;
+        [SerializeField] private LayerMask interactionLayer;
+        
+        private static Tag BlockedBy => Tag.Interacting | Tag.Charging;
+        
         private ActorHost host;
         private IInteractable currentInteractable;
+        private Camera cam;
 
         private static readonly Intent[] reactsTo = { Intent.Interact };
         public IEnumerable<Intent> ReactsTo => reactsTo;
@@ -26,9 +33,41 @@ namespace Features.Modules
             }
         }
 
-        void Awake() => host = GetComponentInParent<ActorHost>();
+        void Awake()
+        {
+            host = GetComponentInParent<ActorHost>();
+            cam = Camera.main;
+        }
+
         void OnEnable() => host.Actor.RegisterModule(this);
         void OnDisable() => host.Actor.RemoveModule(this);
+
+        void Update()
+        {
+            if (host.Actor.Tags.HasAny(BlockedBy)) return;
+            IInteractable candidate = null;
+
+            if (Physics.SphereCast(cam.transform.position,
+                    castRadius, cam.transform.forward,
+                    out var hit, interactRange, interactionLayer,
+                    QueryTriggerInteraction.Collide)
+                && hit.collider.TryGetComponent(out IInteractable found)
+                && found.CanInteract(host.Actor))
+            {
+                candidate = found;
+            }
+
+            if (candidate == currentInteractable) return;
+            if (currentInteractable != null)
+            {
+                host.Actor.Focus.Clear(currentInteractable);
+            }
+            currentInteractable = candidate;
+            if (currentInteractable != null)
+            {
+                host.Actor.Focus.Set(currentInteractable);
+            }
+        }
         
     
     }

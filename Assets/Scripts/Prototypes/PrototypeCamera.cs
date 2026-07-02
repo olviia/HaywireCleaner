@@ -7,9 +7,7 @@ namespace Prototypes
         [SerializeField] private Transform target;
         [SerializeField] private float height;
         [SerializeField] private float distance = 0f;
-        [SerializeField] private float sensitivity = 2f;
-        [SerializeField] private float minPitch = -20f;
-        [SerializeField] private float maxPitch = 60f;
+        
     
     
         [SerializeField] private float smoothTime = 0.3f;

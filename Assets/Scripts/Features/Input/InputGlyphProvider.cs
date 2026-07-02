@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using Core.Input;
 using Core.Player;
+using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.LowLevel;
 
 namespace Features.Input
 {
@@ -18,6 +20,7 @@ namespace Features.Input
         private readonly Dictionary<Intent, Glyph> glyphMap = new(); //this is what we have to give back to core
 
         private InputControlScheme? scheme;
+        private InputDevice activeDevice;
 
         public InputGlyphProvider(IReadOnlyDictionary<Intent, InputAction> intentInputMap, InputActionAsset actions)
         {
@@ -63,17 +66,36 @@ namespace Features.Input
 
         private void OnActionChange(object obj, InputActionChange change)
         {
-            if (change != InputActionChange.ActionPerformed || obj is not InputAction a) return;
-            var device = a.activeControl?.device;
-            if(device == null) return;
-            var next = InputControlScheme.FindControlSchemeForDevice(device, actions.controlSchemes);
-            if(next == null || next.Value.bindingGroup == scheme?.bindingGroup) return; 
+            if (change != InputActionChange.ActionPerformed || obj is not InputAction action) return;
+
+            var device = action.activeControl?.device;   // the device that actually caused the input
+            if (device == null || device == activeDevice) return;   
+
+            activeDevice = device;  
+
+            var next = SchemeForDevice(device);     
+            if (next == null || next.Value.bindingGroup == scheme?.bindingGroup) return; 
             
             scheme = next;
             glyphMap.Clear();
             DeviceChanged?.Invoke();
         }
+        
+        private InputControlScheme? SchemeForDevice(InputDevice device)
+        {
+            foreach (var s in actions.controlSchemes)
+            {
+                foreach (var req in s.deviceRequirements)
+                {
+                    if (InputControlPath.Matches(req.controlPath, device))
+                    {
+                        return s;
+                    }
+                }
+            }
+            return null;
+        }
 
-        public void Dispose() => InputSystem.onActionChange -= OnActionChange;
+        public void Dispose()=> InputSystem.onActionChange -= OnActionChange;
     }
 }

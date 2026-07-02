@@ -22,7 +22,7 @@ namespace Features.Modules
         private float rotateInput;
         private bool canMove;
         
-        private static readonly Tag BlockedBy = Tag.Interacting | Tag.Charging;
+        private static Tag BlockedBy => Tag.Interacting | Tag.Charging;
         
         private static readonly Intent[] reactsTo = { Intent.Move };
         public IEnumerable<Intent> ReactsTo=>reactsTo;

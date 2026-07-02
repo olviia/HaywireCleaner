@@ -15,6 +15,7 @@ namespace Features.Modules
 
         private static readonly Intent[] reactsTo = { Intent.Charge , Intent.StopCharge };
         public IEnumerable<Intent> ReactsTo => reactsTo;
+        private Tag BlockedBy;
         
         void Awake()
         {
