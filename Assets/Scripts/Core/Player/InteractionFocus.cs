@@ -1,4 +1,5 @@
 using Core.Interaction;
+using UnityEngine;
 
 namespace Core.Player
 {
@@ -9,12 +10,12 @@ namespace Core.Player
     {
         public IInteractable Current { get; private set; }
 
-        public void Set(IInteractable next)
+        public void Set(IInteractable next, Vector3 hitPoint)
         {
             if (Current == next) return; 
             Current?.OnUnfocus();
             Current = next;
-            Current?.OnFocus();
+            Current?.OnFocus(hitPoint);
         }
 
         public void Clear(IInteractable leaving)

@@ -18,6 +18,13 @@ namespace Core.Player
         public void RemoveModule(IModule module) => modules.Remove(module);
         public void OnPosessed() => ModuleInput.OnIntent += Send;
         public void OnUnposessed() => ModuleInput.OnIntent -= Send;
+        
+        public T GetModule<T>() where T : class
+        {
+            foreach (var module in modules)
+                if (module is T t) return t;
+            return null;
+        }
 
         //for the input command
         void Send(Intent intent, Vector2 extraInfo)

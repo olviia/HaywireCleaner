@@ -58,7 +58,10 @@ namespace Features.Input
 
         //discrete actions are raising events
         void OnInteractPerformed(InputAction.CallbackContext context)
-                                        => ModuleInput.RaiseInteract();
+        {
+            ModuleInput.RaiseInteract();
+            ModuleInput.RaiseStopCharging();
+        }
         
     }
 }

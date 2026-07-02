@@ -8,7 +8,8 @@ namespace Features.Interactables
 {
     public class SlidingDoors:MonoBehaviour, IInteractable
     {
-        [SerializeField] private UIInteractPromptDisplayRequestSO promptDisplayRequestSo;
+        [SerializeField] private UIPromptDisplayRequestSO promptDisplayRequestSo;
+        [SerializeField] private UIPromptPositionRequestSO promptPositionRequestSo;
         [SerializeField] private LocalizedString promptOpen;
         [SerializeField] private LocalizedString promptClose;
         
@@ -19,16 +20,16 @@ namespace Features.Interactables
 
         public bool CanInteract(Actor actor) => !isBusy;
 
-        public void OnFocus()
+        public void OnFocus(Vector3 hitPoint)
         {
-            promptDisplayRequestSo.RaiseShow(Prompt, Intent.Interact, this.transform);
+            promptDisplayRequestSo.RaiseShow(Prompt, Intent.Interact);
+            promptPositionRequestSo.RaiseSetPosition(hitPoint);
 
         }
 
         public void OnUnfocus()
         {
             promptDisplayRequestSo.RaiseHide();
-
         }
 
         public void Interact(Actor actor)

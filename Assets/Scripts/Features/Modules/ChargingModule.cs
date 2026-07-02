@@ -1,22 +1,21 @@
 using System.Collections;
 using System.Collections.Generic;
+using Core.Interaction;
 using Core.Player;
 using UnityEngine;
 
 namespace Features.Modules
 {
-    public class ChargingModule:MonoBehaviour, IModule
+    public class ChargingModule:MonoBehaviour, IModule, IChargeable
     {
         private ActorHost host;
         private Rigidbody rb;
-        private Coroutine goToCharge;
 
-        [SerializeField] private float moveToDockDuration = 0.6f;
-
-        private static readonly Intent[] reactsTo = { Intent.Charge , Intent.StopCharge };
+        private static readonly Intent[] reactsTo = { Intent.Interact };
         public IEnumerable<Intent> ReactsTo => reactsTo;
-        private Tag BlockedBy;
+        private Tag BlockedBy => Tag.Interacting;
         
+        private IDock currentDocking;
         void Awake()
         {
             host = GetComponentInParent<ActorHost>();
@@ -26,52 +25,31 @@ namespace Features.Modules
         void OnDisable() => host.Actor.RemoveModule(this);
         public void Handle(Actor owner, Command cmd)
         {
-            switch (cmd.WhatToDo)
+            if (host.Actor.Tags.HasAny(Tag.Charging))
             {
-                case Intent.Charge      :Dock(owner, cmd.Position); break;
-                case Intent.StopCharge  :Undock(owner); break;
+                StopCharge();
             }
         }
 
-        private void Dock(Actor owner, Transform anchor)
+        public void StartDocking(IDock dock)
         {
-            if (owner.Tags.HasAny(Tag.Charging) || anchor == null) return;
-            owner.Tags.Add(Tag.Charging);
-            rb.isKinematic = true; // to move smoothly and not fighting with physics
-            if(goToCharge != null)StopCoroutine(goToCharge); // some stopper for failstate
-            goToCharge = StartCoroutine(GoToCharge(anchor));
+            dock.Dock(rb);
+            currentDocking = dock;
+            dock.Docked += SetChargingTag;
         }
 
-        private void Undock(Actor owner)
+        private void SetChargingTag()
         {
-            if (!owner.Tags.HasAny(Tag.Charging)) return;
-            if (goToCharge != null)
-            {
-                StopCoroutine(goToCharge);
-                goToCharge = null;
-            }
-            rb.isKinematic = false;
-            owner.Tags.Remove(Tag.Charging);
+            host.Actor.Tags.Remove(Tag.Interacting);
+            host.Actor.Tags.Add(Tag.Charging);
         }
 
-        private IEnumerator GoToCharge(Transform anchor)
+        public void StopCharge()
         {
-            Vector3 startPos = rb.position;
-            Quaternion startRot = rb.rotation;
-            float elapsed = 0f;
-
-            while (elapsed < moveToDockDuration)
-            {
-                elapsed += Time.fixedDeltaTime;
-                float t = Mathf.SmoothStep(0.0f, 1.0f, elapsed / moveToDockDuration);
-                
-                rb.MovePosition(Vector3.Lerp(startPos, anchor.position, t));
-                rb.MoveRotation(Quaternion.Slerp(startRot, anchor.rotation, t));
-                yield return new WaitForFixedUpdate();
-            }
-            rb.MovePosition(anchor.position); //exact snap
-            rb.MoveRotation(anchor.rotation);
-            goToCharge = null;
+            currentDocking.Docked -= SetChargingTag;
+            currentDocking.UnDock(rb);
+            host.Actor.Tags.Remove(Tag.Charging);
+            currentDocking = null;
         }
     }
 }

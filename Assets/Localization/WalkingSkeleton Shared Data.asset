@@ -32,11 +32,15 @@ MonoBehaviour:
     m_Metadata:
       m_Items: []
   - m_Id: 5354343334535168
-    m_Key: UI.Interact.ChargingStation
+    m_Key: UI.Interact.StartCharge
     m_Metadata:
       m_Items: []
   - m_Id: 6087007996227584
     m_Key: UI.Interact.Open
+    m_Metadata:
+      m_Items: []
+  - m_Id: 6142805300490240
+    m_Key: UI.Interact.StopCharge
     m_Metadata:
       m_Items: []
   m_Metadata:

@@ -12,6 +12,9 @@ using System.Collections.Generic;
          None        = 0,
          Interacting = 1 << 0,
          Charging = 1 << 1,
+         Busy     = 1 << 2,
+         
+         
          // 1 << N is a bit shift — it places a single 1 bit at    
          // position N in the number, so each tag value has its own
          // unique bit:

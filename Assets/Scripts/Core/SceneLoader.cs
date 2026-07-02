@@ -22,15 +22,16 @@ namespace Core
 
         public static void LoadScene(GameScene from, GameScene to)
         {
+            Scene leaving = SceneManager.GetActiveScene();
             string sceneToLoad = sceneMap[to];
-            string sceneToUnload = sceneMap[from];
             
             AsyncOperation loadOperation = SceneManager.LoadSceneAsync(sceneToLoad, 
                                                                         LoadSceneMode.Additive);
             
             loadOperation.completed += _ =>
             {
-                SceneManager.UnloadSceneAsync(sceneToUnload);
+                SceneManager.SetActiveScene(SceneManager.GetSceneByName(sceneToLoad)); 
+                SceneManager.UnloadSceneAsync(leaving);
                 OnSceneLoaded?.Invoke(to);
             };
             

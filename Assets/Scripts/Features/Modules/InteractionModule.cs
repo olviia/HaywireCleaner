@@ -16,7 +16,7 @@ namespace Features.Modules
         [SerializeField] private float castRadius = 0.3f;
         [SerializeField] private LayerMask interactionLayer;
         
-        private static Tag BlockedBy => Tag.Interacting | Tag.Charging;
+        private static Tag BlockedBy => Tag.Interacting | Tag.Charging ;
         
         private ActorHost host;
         private IInteractable currentInteractable;
@@ -44,8 +44,18 @@ namespace Features.Modules
 
         void Update()
         {
-            if (host.Actor.Tags.HasAny(BlockedBy)) return;
+            if (host.Actor.Tags.HasAny(BlockedBy))
+            {
+                if (currentInteractable != null)
+                {
+                    host.Actor.Focus.Clear(currentInteractable);
+                    currentInteractable = null;
+                }
+                return;
+            }
+
             IInteractable candidate = null;
+            Vector3 hitPoint = default;
 
             if (Physics.SphereCast(cam.transform.position,
                     castRadius, cam.transform.forward,
@@ -56,6 +66,7 @@ namespace Features.Modules
                 if (found != null && found.CanInteract(host.Actor))
                 {
                     candidate = found;    
+                    hitPoint = hit.point;
                 }
             }
 
@@ -67,7 +78,7 @@ namespace Features.Modules
             currentInteractable = candidate;
             if (currentInteractable != null)
             {
-                host.Actor.Focus.Set(currentInteractable);
+                host.Actor.Focus.Set(currentInteractable, hitPoint);
             }
         }
         
