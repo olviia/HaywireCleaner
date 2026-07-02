@@ -50,11 +50,13 @@ namespace Features.Modules
             if (Physics.SphereCast(cam.transform.position,
                     castRadius, cam.transform.forward,
                     out var hit, interactRange, interactionLayer,
-                    QueryTriggerInteraction.Collide)
-                && hit.collider.TryGetComponent(out IInteractable found)
-                && found.CanInteract(host.Actor))
+                    QueryTriggerInteraction.Collide))
             {
-                candidate = found;
+                var found = hit.collider.GetComponentInParent<IInteractable>();
+                if (found != null && found.CanInteract(host.Actor))
+                {
+                    candidate = found;    
+                }
             }
 
             if (candidate == currentInteractable) return;

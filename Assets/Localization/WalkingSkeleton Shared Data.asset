@@ -15,20 +15,28 @@ MonoBehaviour:
   m_TableCollectionName: WalkingSkeleton
   m_TableCollectionNameGuidString: 42c65d3e360c7b440a38df68aea27393
   m_Entries:
-  - m_Id: 21615095808
-    m_Key: title.title
-    m_Metadata:
-      m_Items: []
-  - m_Id: 510536724480
-    m_Key: title.start_button
+  - m_Id: 6087216344084480
+    m_Key: UI.Interact.Close
     m_Metadata:
       m_Items: []
   - m_Id: 5860866404352
     m_Key: title.language_button
     m_Metadata:
       m_Items: []
+  - m_Id: 510536724480
+    m_Key: title.start_button
+    m_Metadata:
+      m_Items: []
+  - m_Id: 21615095808
+    m_Key: title.title
+    m_Metadata:
+      m_Items: []
   - m_Id: 5354343334535168
     m_Key: UI.Interact.ChargingStation
+    m_Metadata:
+      m_Items: []
+  - m_Id: 6087007996227584
+    m_Key: UI.Interact.Open
     m_Metadata:
       m_Items: []
   m_Metadata:

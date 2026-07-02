@@ -34,6 +34,14 @@ MonoBehaviour:
     m_Localized: Charge
     m_Metadata:
       m_Items: []
+  - m_Id: 6087007996227584
+    m_Localized: Open
+    m_Metadata:
+      m_Items: []
+  - m_Id: 6087216344084480
+    m_Localized: Close
+    m_Metadata:
+      m_Items: []
   references:
     version: 2
     RefIds: []
