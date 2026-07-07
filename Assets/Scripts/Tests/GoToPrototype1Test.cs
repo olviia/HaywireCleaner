@@ -1,6 +1,7 @@
 using System;
 using Core;
 using Core.Player;
+using Core.SceneControls;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 

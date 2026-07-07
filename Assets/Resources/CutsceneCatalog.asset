@@ -12,5 +12,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ead183f4ed4c4b3682dbaabce6d3fcca, type: 3}
   m_Name: CutsceneCatalog
   m_EditorClassIdentifier: Cutscenes::Features.Cutscenes.CutsceneCatalogSO
-  all:
+  cutscenes:
   - {fileID: 11400000, guid: b479c953ee9042647ab40e4e0902e015, type: 2}

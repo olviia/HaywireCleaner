@@ -16,7 +16,6 @@ namespace Features.UI
         //distance between prompt and interactable object
         [SerializeField]private Vector3 worldOffset = Vector3.up; 
 
-        private Camera cam;
         private Vector3 worldPoint;
         private bool hasTarget;
 
@@ -34,7 +33,6 @@ namespace Features.UI
 
         void OnSetPosition(Vector3 hitPoint)
         {
-            cam = Camera.main;
             worldPoint = hitPoint;
             hasTarget = true;
 
@@ -50,7 +48,7 @@ namespace Features.UI
 
         void PositionToAnchor()
         {
-            var screen = cam.WorldToScreenPoint(worldPoint + worldOffset);
+            var screen = Camera.main.WorldToScreenPoint(worldPoint + worldOffset);
             if (screen.z <= 0f) return; // dont move behind the screen
             this.transform.position = screen;
         }

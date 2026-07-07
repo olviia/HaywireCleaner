@@ -309,7 +309,7 @@ GameObject:
   - component: {fileID: 262738298}
   - component: {fileID: 262738297}
   - component: {fileID: 262738296}
-  - component: {fileID: 262738295}
+  - component: {fileID: 262738299}
   m_Layer: 5
   m_Name: btn_startGame
   m_TagString: Untagged
@@ -337,18 +337,6 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 250, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &262738295
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 262738293}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0a569868fd3e440b901f7594e58e51b3, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Features.Title::Features.Title.TestButton
 --- !u!114 &262738296
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -393,8 +381,8 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 262738295}
-        m_TargetAssemblyTypeName: Features.Title.TestButton, Features.Title
+      - m_Target: {fileID: 262738299}
+        m_TargetAssemblyTypeName: Features.Title.StartNewGameButton, Features.Title
         m_MethodName: StartNewGame
         m_Mode: 1
         m_Arguments:
@@ -443,6 +431,19 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 262738293}
   m_CullTransparentMesh: 1
+--- !u!114 &262738299
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 262738293}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ed86974349074130a783a4405ec1671f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Features.Title::Features.Title.StartNewGameButton
+  gameSession: {fileID: 11400000, guid: 6a5efc8700a68cd4d96716add129803b, type: 2}
 --- !u!1 &417272510
 GameObject:
   m_ObjectHideFlags: 0

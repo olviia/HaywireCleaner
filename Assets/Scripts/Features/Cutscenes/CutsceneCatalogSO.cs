@@ -9,6 +9,6 @@ namespace Features.Cutscenes
     [CreateAssetMenu(fileName = "CutsceneCatalog", menuName = "Cleanbot/Cutscenes/Catalog")]
     public class CutsceneCatalogSO : ScriptableObject
     {
-        public List<CutsceneDefinitionSO> all;
+        public List<CutsceneDefinitionSO> cutscenes;
     }
 }

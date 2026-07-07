@@ -20,7 +20,6 @@ namespace Features.Modules
         
         private ActorHost host;
         private IInteractable currentInteractable;
-        private Camera cam;
 
         private static readonly Intent[] reactsTo = { Intent.Interact };
         public IEnumerable<Intent> ReactsTo => reactsTo;
@@ -36,7 +35,6 @@ namespace Features.Modules
         void Awake()
         {
             host = GetComponentInParent<ActorHost>();
-            cam = Camera.main;
         }
 
         void OnEnable() => host.Actor.RegisterModule(this);
@@ -56,7 +54,8 @@ namespace Features.Modules
 
             IInteractable candidate = null;
             Vector3 hitPoint = default;
-
+            
+            Camera cam = Camera.main;
             if (Physics.SphereCast(cam.transform.position,
                     castRadius, cam.transform.forward,
                     out var hit, interactRange, interactionLayer,
