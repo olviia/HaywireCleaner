@@ -15,7 +15,7 @@ never interact with Unity's scene system directly.
 |---|---|---|---|
 | `SceneStateMachine` | `Core/SceneStateMachine.cs` | Defines the transition vocabulary: current scene state, transition request method, transition event | Features, `SceneLoader` |
 | `SceneLoader` | `Core/SceneLoader.cs` | Loads/unloads Unity scenes via `SceneManager` in response to transitions | `Bootstrap` only |
-| `Bootstrap` | `Bootstrap/Bootstrap.cs` | Composition root. Configures the scene name map and connects `SceneStateMachine` to `SceneLoader` at startup | — |
+| `Bootstrap` | `App/Bootstrap.cs` (asmdef `App`, namespace `Bootstrap`) | Composition root. `[RuntimeInitializeOnLoadMethod(BeforeSceneLoad)]` configures the scene name map and connects `SceneStateMachine` to `SceneLoader` at startup | — |
 
 ## 3. API
 
@@ -32,7 +32,7 @@ never interact with Unity's scene system directly.
 1. Features request transitions only via `SceneStateMachine.ChangeSceneTo`.
 2. No code outside `Core/SceneLoader.cs` may call `UnityEngine.SceneManagement.SceneManager`.
 3. `Bootstrap` is the only component permitted to call `SceneLoader` directly.
-4. Anything that needs to act only once a target scene's objects exist (e.g. finding a `MonoBehaviour` that just got loaded) must subscribe to `SceneLoader.OnSceneLoaded`, not `SceneStateMachine.OnGameSceneChanged`. The latter fires synchronously the instant a transition is *requested*, before the async load has even started — a real bug this session (`Features/Cutscenes/CutsceneDirector.cs` firing into a scene whose `CutscenePlayer` didn't exist yet) came from exactly this confusion.
+4. Anything that needs to act only once a target scene's objects exist (e.g. finding a `MonoBehaviour` that just got loaded) must subscribe to `SceneLoader.OnSceneLoaded`, not `SceneStateMachine.OnGameSceneChanged`. The latter fires synchronously the instant a transition is *requested*, before the async load has even started — *historically*, `CutsceneDirector` firing into a scene whose `CutscenePlayer` didn't exist yet came from exactly this confusion. Both have since been refactored away; the current gameplay-side trigger (`GameplayBootstrap`) instead relies on the all-`OnEnable`-before-all-`Start` ordering *within* the loaded scene — see *Session Intent & New-Game Flow* §4.
 
 ## 5. Verification
 
@@ -56,14 +56,14 @@ SceneStateMachine.ChangeSceneTo(GameScene.Gameplay);
 | Assembly | References |
 |---|---|
 | `Core` | none |
-| `Bootstrap` | `Core` |
+| `App` (namespace `Bootstrap`) | `Core` |
 | `Features.*` | `Core` |
 
 ---
 
 # Save System Architecture
 
-**Status:** Implemented — `flags` only (other dictionaries exist but have no accessors yet)
+**Status:** Implemented — `flags` only (other dictionaries exist but have no accessors yet). Note: the typed flag Get/Set API currently has **no caller** — the cutscene director was its only user and stopped using it when play-once gating was removed. `NewSave`/`Save` are the only live entry points today.
 **Scope:** typed save-game persistence (JSON to disk)
 
 ## 1. Overview
@@ -77,7 +77,7 @@ narrow, typed Get/Set API.
 
 | Component | Location | Responsibility | Used by |
 |---|---|---|---|
-| `WorldState` | `Core/SaveSystem/WorldState.cs` | Mediator: owns the current `SaveData` in memory, exposes typed Get/Set API, owns JSON file I/O | Features (read/write flags), `GameFlow` (`NewSave`) |
+| `WorldState` | `Core/SaveSystem/WorldState.cs` | Mediator: owns the current `SaveData` in memory, exposes typed Get/Set API, owns JSON file I/O | `GameFlow` (`NewSave`), `TestButton` (`Save`); typed flag Get/Set API currently has **no caller** |
 | `SaveData` | `Core/SaveSystem/SaveData.cs` | `internal` plain data container — value-shape-typed dictionaries (`flags: bool`, `counters: int`, `reactions: float`, `names: string`, `positions: Vector3`, `attributeValues: float`) plus `ownedModuleId`/`skillId` lists and character/version/timestamp fields | `WorldState` only |
 
 ## 3. API
@@ -92,7 +92,7 @@ narrow, typed Get/Set API.
 ## 4. Rules
 
 1. `SaveData` is `internal` — code outside `Core/SaveSystem/` cannot even compile a reference to it. Enforced by the compiler, not just convention.
-2. Features build their own save keys via small per-feature static classes shaped `"category.id.field"` (e.g. `Features/Cutscenes/CutsceneSaveKeys.Played(id)` → `"cutscene.{id}.played"`) — `Core` never knows feature category names.
+2. Features build their own save keys via small per-feature static classes shaped `"category.id.field"` (e.g. `Features/Cutscenes/CutsceneSaveKeys.Played(id)` → `"cutscene.{id}.played"`) — `Core` never knows feature category names. (That `CutsceneSaveKeys` example still exists but currently has **no caller** — see *Cutscene System* §2.)
 3. Only `flags` has Get/Set methods on `WorldState` today. `counters`/`reactions`/`names`/`positions`/`attributeValues` exist in `SaveData` but are unused — add a same-shaped accessor pair on `WorldState` (mirroring `GetFlag`/`SetFlag`) the first time a feature actually needs one, rather than exposing all of them up front.
 
 ## 5. Verification
@@ -106,10 +106,14 @@ Expected result: matches only in `Core/SaveSystem/WorldState.cs` and `Core/SaveS
 ## 6. Usage example
 
 ```csharp
-// Features/Cutscenes/CutsceneDirector.cs
-if (WorldState.GetFlag(CutsceneSaveKeys.Played(cutsceneId))) return;
-// ...
-WorldState.SetFlag(CutsceneSaveKeys.Played(def.id), true);
+// The typed flag API — shape only; no feature calls it today. The cutscene
+// director used this before play-once gating was removed:
+if (WorldState.GetFlag(someKey)) return;
+WorldState.SetFlag(someKey, true);
+
+// Live callers today:
+WorldState.NewSave();   // GameFlow.StartNewGame
+WorldState.Save();      // TestButton (dev harness)
 ```
 
 ## 7. Assembly dependencies
@@ -119,46 +123,135 @@ compiles under `Core.asmdef` (no references) like the rest of Core.
 
 ---
 
-# Cutscene System Architecture
+# Session Intent & New-Game Flow Architecture
 
-**Status:** Implemented for one cutscene (`NewGameIntro`) — trigger dispatch
-is per-id and hardcoded, not yet data-driven
-**Scope:** data-driven cutscene definitions, Timeline-based playback,
-play-once gating via save flags
+**Status:** Implemented — a **New Game** press drives the intro cutscene end
+to end. `Continue` and `None` branches are stubs (`LoadSavedGame` /
+`InitializeNewGame` are empty). `GameFlow`'s `OnNewGameRequested` /
+`OnLoadGameRequested` events still fire but have **no subscribers** (dead), and
+`GameFlow.LoadGame()` has no callers.
+**Scope:** how "which way did we enter gameplay" (New Game vs Continue) crosses
+the Title→Gameplay scene boundary and fans out to gameplay systems (today: the
+intro cutscene).
 
 ## 1. Overview
 
-A cutscene is defined as data (`CutsceneDefinitionSO`) and listed in a
-catalog (`CutsceneCatalogSO`). `CutsceneDirector` is the only thing that
-decides *when* a cutscene plays and *whether* it's allowed to (checking and
-writing the played-flag). `CutscenePlayer` is the only thing that knows
-*how* to play one — instantiate the prefab, run its `PlayableDirector`,
-clean up.
+Entry intent is carried as **data, not a live object**. `GameSession` (a
+ScriptableObject) holds a transient `EntryMode`; the Title menu writes it, the
+Gameplay scene reads it once and acts. Because the reader lives on the gameplay
+side, the "new game started" broadcast (`newGameStarted`, a `VoidEventSO`) is
+raised only *after* the Gameplay scene and its listeners exist — the fix for the
+listener-lifetime bug that firing an event straight from the menu button would
+have caused.
+
+`GameFlow` (pre-existing, static) still owns the mechanical transition —
+`WorldState.NewSave()` + `SceneStateMachine.ChangeSceneTo`. The button calls
+*both*: `GameSession.Request(NewGame)` for intent, `GameFlow.StartNewGame()` for
+the save-reset + scene change. Intent and transition are two concerns on two
+objects.
 
 ## 2. Components
 
 | Component | Location | Responsibility | Used by |
 |---|---|---|---|
-| `CutsceneCatalogSO` | `Features/Cutscenes/CutsceneCatalogSO.cs` | ScriptableObject: hand-curated `List<CutsceneDefinitionSO> all`. Loaded once via `Resources.Load<CutsceneCatalogSO>("CutsceneCatalog")` — must live at `Assets/Resources/CutsceneCatalog.asset` | `CutsceneDirector` |
-| `CutsceneDefinitionSO` | `Features/Cutscenes/CutsceneDefinitionSO.cs` | ScriptableObject: one cutscene's data — `id` (string), `cutscenePrefab` (`GameObject`, must carry a `PlayableDirector`), `replayable` (bool) | `CutsceneCatalogSO`, `CutsceneDirector` |
-| `CutsceneDirector` | `Features/Cutscenes/CutsceneDirector.cs` | Static, no `MonoBehaviour`. Loads the catalog on boot, subscribes to `SceneLoader.OnSceneLoaded`, checks cutscenes only when the loaded scene is `GameScene.Gameplay`, looks up a definition by id, gates on the played-flag, raises `OnPlayRequested`, sets the played-flag (unless `replayable`) | — |
-| `CutscenePlayer` | `Features/Cutscenes/CutscenePlayer.cs` | `MonoBehaviour`. Lives in any scene that should be able to show a cutscene (`Gameplay.unity`, `LoopTestScene.unity`). Subscribes to `CutsceneDirector.OnPlayRequested`, instantiates the prefab, fetches `PlayableDirector` **from the instantiated prefab** (not from its own GameObject, despite what its class doc-comment currently says), plays it, and on stop destroys the instance and redirects to `GameScene.Prototype1` (temporary, see Rules) | — |
-| `CutsceneSaveKeys` | `Features/Cutscenes/CutsceneSaveKeys.cs` | Builds the `"cutscene.{id}.played"` key string used with `WorldState` | `CutsceneDirector` |
+| `GameSession` | `Core/SceneControls/GameSession.cs` | SO carrying `EntryMode {None,NewGame,Continue}`. `Request(mode)` writes it (menu side); `Consume()` reads-and-resets it (gameplay side, consume-once); `OnEnable` resets to `None` for editor hygiene. `PendingEntry` is a read-only getter for inspector visibility. Menu: `Cleanbot/App/GameSession` | `StartNewGameButton`, `GameplayBootstrap` |
+| `VoidEventSO` | `Core/Events/VoidEventSO.cs` | Payload-less SO event channel: `event Action Raised` + `RaiseAction()`. The reusable "something happened" broadcast primitive. Menu: `Cleanbot/Events/VoidEventSO` | `GameplayBootstrap` (raises `newGameStarted`), `CutsceneDirector` (subscribes via each definition's `trigger`) |
+| `GameplayBootstrap` | `App/GameplayBootstrap.cs` (namespace `Bootstrap`) | `MonoBehaviour` in the Gameplay scene. On `Start`, switches on `session.Consume()` — `NewGame`: `InitializeNewGame()` (stub) + `newGameStarted.RaiseAction()`; `Continue`: `LoadSavedGame()` (stub); `None`: nothing | — |
+| `StartNewGameButton` | `Features/Title/StartNewGameButton.cs` | `MonoBehaviour` on the New Game button. `StartNewGame()` (wired via the Button's inspector `onClick`, not `AddListener`): `gameSession.Request(NewGame)` then `GameFlow.StartNewGame()` | — |
+| `GameFlow` | `Core/SceneControls/GameFlow.cs` | Static. `StartNewGame()`: `WorldState.NewSave()` + fires (dead) `OnNewGameRequested` + `ChangeSceneTo(Gameplay)`. `LoadGame()`: fires (dead) `OnLoadGameRequested` + `ChangeSceneTo(Gameplay)` — no callers | `StartNewGameButton`, `TestButton` |
+| `TestButton` | `Features/Title/TestButton.cs` | Dev-only harness (locale switch, `WorldState.Save()` test, scene nav). Its `StartNewGame()` calls `GameFlow.StartNewGame()` **without** setting `GameSession` intent — so entering gameplay via `TestButton` leaves intent `None` and the intro does **not** play | — |
+
+## 3. The flow
+
+```
+StartNewGameButton.StartNewGame()          [Title scene, Button.onClick]
+  ├─ gameSession.Request(EntryMode.NewGame)            // leave the note
+  └─ GameFlow.StartNewGame()
+       ├─ WorldState.NewSave()
+       ├─ OnNewGameRequested?.Invoke()                 // dead — no subscribers
+       └─ SceneStateMachine.ChangeSceneTo(Gameplay)    // → SceneLoader loads Gameplay
+
+Gameplay scene finishes loading
+  ├─ CutsceneDirector.OnEnable()   subscribes to newGameStarted.Raised (via NewGameIntro.trigger)
+  └─ GameplayBootstrap.Start()     session.Consume() == NewGame
+       ├─ InitializeNewGame()                          // stub
+       └─ newGameStarted.RaiseAction() ─────────────►  CutsceneDirector plays NewGameIntro
+```
+
+## 4. Rules
+
+1. **`GameSession` is consume-once.** `Consume()` reads and clears in one call; `OnEnable` also resets to `None`. A second read yields `None`. This — not a saved flag — is what stops the intro replaying on a later scene reload.
+2. **Timing is safe by lifecycle order.** The raise happens in `GameplayBootstrap.Start`; listeners subscribe in `OnEnable`. Unity runs *all* `OnEnable` before *any* `Start` within a loaded scene, so the director is subscribed before the intro fires. Keep the raise in `Start` (not `Awake`/`OnEnable`) and no sticky/replay channel is needed.
+3. **Two wires must point at the *same* asset** (silent failure otherwise): the same `GameSession` asset in `StartNewGameButton.gameSession` and `GameplayBootstrap.session`; the same `VoidEventSO` asset in `GameplayBootstrap.newGameStarted` and the `NewGameIntro` definition's `trigger`.
+4. **`GameFlow` coexists with `GameSession` deliberately, but its events are dead.** `GameFlow` provides `NewSave` + the scene change; `GameSession` carries the gameplay-side intent. `OnNewGameRequested` / `OnLoadGameRequested` currently have no subscribers — the gameplay-side signal is `newGameStarted`, not these. Either wire them or delete them; right now they are noise.
+5. **`GameplayBootstrap` Continue/None branches are stubs** — the load-game path isn't implemented.
+
+## 5. Verification
+
+```
+grep -rn "RaiseAction\|\.Raised" Assets/Scripts --include=*.cs
+```
+
+Expected: `newGameStarted` raised only in `GameplayBootstrap.cs`; `Raised` subscribed to only in `CutsceneDirector.cs` (plus the `VoidEventSO` type itself).
+
+## 6. Assembly dependencies
+
+| Assembly | References |
+|---|---|
+| `Core` (`Core/SceneControls`, `Core/Events`) | none |
+| `App` (folder `App/`, asmdef `App`, namespace `Bootstrap`) | `Core` — no reference to any Feature; it reaches Cutscenes only *indirectly*, by raising a `VoidEventSO` the Cutscenes assembly listens to |
+| `Features.Title` | `Core`, `Unity.Localization` |
+
+---
+
+# Cutscene System Architecture
+
+**Status:** Implemented and **data-driven**. Each cutscene declares its own
+trigger event; `CutsceneDirector` subscribes to all of them and plays on raise.
+Adding a cutscene needs **no code change**. Play-once gating has been
+**removed** — the director no longer touches the save system.
+**Scope:** data-driven cutscene definitions, event-triggered dispatch, prefab +
+Timeline playback.
+
+## 1. Overview
+
+A cutscene is data (`CutsceneDefinitionSO`) that carries both its content *and*
+the event that triggers it (`VoidEventSO trigger`) — content declares its own
+activation, the same shape as Unreal's GAS abilities. Definitions are listed in
+a catalog (`CutsceneCatalogSO`). `CutsceneDirector` (now a single
+`MonoBehaviour`) subscribes to every definition's `trigger` in its catalog and,
+on raise, instantiates that cutscene's prefab and plays its `PlayableDirector`.
+There is no central "which cutscene / when" logic, no scene-gating, and no
+save-flag gating — the trigger *is* the decision, and it lives on the data.
+
+The old static director + separate `CutscenePlayer` + `OnPlayRequested` hop +
+`Resources.Load` catalog + `WorldState` played-flag are all gone (see git
+history). `CutscenePlayer.cs` was deleted; its playback logic folded into the
+director once the director became a `MonoBehaviour`.
+
+## 2. Components
+
+| Component | Location | Responsibility | Used by |
+|---|---|---|---|
+| `CutsceneCatalogSO` | `Features/Cutscenes/CutsceneCatalogSO.cs` | SO: hand-curated `List<CutsceneDefinitionSO> cutscenes`. Assigned to the director via a **serialized reference** (no longer `Resources.Load`). Menu: `Cleanbot/Cutscenes/Catalog` | `CutsceneDirector` |
+| `CutsceneDefinitionSO` | `Features/Cutscenes/CutsceneDefinitionSO.cs` | SO: one cutscene's data — `id`, `cutscenePrefab` (`GameObject`, must carry a `PlayableDirector`), `trigger` (`VoidEventSO`, what fires it), `replayable` (bool, **currently vestigial** — no longer read). Menu: `Cleanbot/Cutscenes/Definition` | `CutsceneCatalogSO`, `CutsceneDirector` |
+| `CutsceneDirector` | `Features/Cutscenes/CutsceneDirector.cs` | `MonoBehaviour`, one per scene that plays cutscenes. `[SerializeField] catalog`. `OnEnable` subscribes a per-definition handler to each `def.trigger.Raised` (storing `(VoidEventSO, Action)` bindings); `OnDisable` unsubscribes all. `Play(def)` instantiates `def.cutscenePrefab`, plays the prefab's `PlayableDirector`, destroys the instance on `stopped` | — |
+| `CutsceneSaveKeys` | `Features/Cutscenes/CutsceneSaveKeys.cs` | Builds `"cutscene.{id}.played"`. **Currently unused** — a leftover of the removed play-once gating; no caller | — (dead) |
 
 ## 3. API
 
 | Method / Event | Owner | Purpose |
 |---|---|---|
-| `CutsceneDirector.OnPlayRequested` (`Action<GameObject>`) | `CutsceneDirector` | Raised with a cutscene's prefab when it should play |
-| `SceneLoader.OnSceneLoaded` (`Action<GameScene>`) | `SceneLoader` | What `CutsceneDirector` listens to in order to know it's safe to check cutscenes (Scene Flow §4) |
+| `VoidEventSO.Raised` (`event Action`) / `RaiseAction()` | `Core/Events/VoidEventSO.cs` | The trigger transport. A cutscene's `trigger` is one of these; whoever raises it (e.g. `GameplayBootstrap` raising `newGameStarted`) makes the director play that cutscene. See *Session Intent & New-Game Flow* |
 
 ## 4. Rules
 
-1. New cutscene *content* (prefab, Timeline, images) never needs a code change — only new assets, registered in the catalog. See the authoring workflow below.
-2. **Wiring a new cutscene's trigger condition currently does need a code change** — a `TryPlay("<id>", <condition>)` line added inside `CutsceneDirector.CheckAllCutscenes()`. There is no generic trigger-kind dispatch yet (the originally-sketched `CutsceneTriggerCondition`/`CutsceneTriggerKind` design would remove this step, but hasn't been built). Don't assume adding a cutscene is fully code-free yet.
-3. `CutsceneDirector`'s checks run on *any* transition into `GameScene.Gameplay` (new game or loaded save) — the played-flag, not a new-game/load-game distinction, is what prevents replay.
-4. Every `ActivationTrack` in a Timeline needs its bound GameObject dragged onto the track's binding slot explicitly — an unbound track plays silently with no error and does nothing visible. Clip durations must also be trimmed to the gap before the next clip starts, or multiple slides stay simultaneously active.
-5. `CutscenePlayer`'s redirect to `GameScene.Prototype1` on every cutscene-end is a temporary, itch-demo-only hack (commented as such in the code). Remove it or move it to per-cutscene data before a second cutscene exists with different post-play needs.
+1. **Adding a cutscene is code-free.** Create a `CutsceneDefinitionSO`, assign its prefab and its `trigger` (a `VoidEventSO`), add it to the catalog, and make sure *something* raises that event. The director never changes. (The old `TryPlay("<id>", …)` edit in `CheckAllCutscenes()` and the whole per-id dispatch are gone.)
+2. **Playback model is prefab-instantiation, not swap-asset.** Each cutscene is a self-contained prefab carrying its own `PlayableDirector` and its own Timeline **bindings**. The director does *not* hold a shared `PlayableDirector` and does *not* `RequireComponent(PlayableDirector)` — the swap-`playableAsset` approach was considered but not taken. Bindings therefore travel inside the prefab (Rule 4).
+3. **No play-once guard exists.** The director neither reads nor writes `WorldState`. `replayable` and `CutsceneSaveKeys` are vestigial. Replay is prevented *only* by the trigger firing once per session (e.g. `newGameStarted` is raised only on New Game). **If a cutscene's trigger can fire repeatedly, the cutscene replays** — there is no guard. Re-introduce gating (or a consume-once trigger) before wiring a repeatable trigger to a play-once cutscene.
+4. Every `ActivationTrack` in a Timeline needs its bound GameObject dragged onto the track's binding slot explicitly — an unbound track plays silently with no error and does nothing visible. Trim clip durations to the gap before the next clip, or multiple slides stay simultaneously active.
+5. **Timing:** the director subscribes in `OnEnable`; triggers are raised in `Start` (by `GameplayBootstrap`) — all `OnEnable` run before any `Start`, so no raise is missed. See *Session Intent & New-Game Flow* §4.
+6. The `bindings` list exists solely so `OnDisable` can `-=` the per-definition lambdas `OnEnable` added — you cannot unsubscribe a lambda you did not store.
 
 ## 5. Verification
 
@@ -166,22 +259,22 @@ clean up.
 grep -rn "OnPlayRequested" Assets/Scripts --include=*.cs
 ```
 
-Expected result: invoked only in `CutsceneDirector.cs`, subscribed to only in `CutscenePlayer.cs`.
+Expected result: **no matches** (removed). `def.trigger.Raised` is subscribed to only in `CutsceneDirector.cs`.
 
 ## 6. Authoring workflow — adding a new cutscene
 
-1. **Build the cutscene prefab.** Create an empty GameObject, add a `PlayableDirector` component. Add whatever visual content the cutscene needs under it (e.g. a `Canvas` with one full-rect `Image` per slide, as `NewGameIntro` does). Leave per-slide objects inactive by default — Activation Tracks control active state at runtime.
-2. **Build the Timeline.** In the Timeline window, assign a `TimelineAsset` to the `PlayableDirector`'s Playable field. Add tracks and clips, **then drag each bound GameObject onto its track's binding slot** — easy to skip, and an unbound track does nothing (Rule 4 above).
-3. **Make it a prefab** by dragging the GameObject from the Hierarchy into the Project window (e.g. `Assets/Cutscenes/<CutsceneName>/`).
-4. **Create a `CutsceneDefinitionSO`** asset (`Create > Cleanbot > Cutscenes > Definition`). Set `id`, assign the prefab from step 3 to `cutscenePrefab`, set `replayable` if it should be allowed to play more than once.
-5. **Add the definition to the catalog** — open `Assets/Resources/CutsceneCatalog.asset` and add the new definition to its `all` list.
-6. **Wire the trigger** (still code, see Rule 2) — add a `TryPlay("<id>", <condition>)` call inside `CutsceneDirector.CheckAllCutscenes()`.
+1. **Build the cutscene prefab.** Empty GameObject + `PlayableDirector`, with the visual content under it (e.g. a `Canvas` of full-rect `Image` slides, as `NewGameIntro` does). Leave per-slide objects inactive — Activation Tracks turn them on at runtime.
+2. **Build the Timeline.** Assign a `TimelineAsset` to the prefab's `PlayableDirector`, add tracks/clips, **then drag each bound GameObject onto its track's binding slot** (Rule 4).
+3. **Make it a prefab** by dragging it into the Project window (e.g. `Assets/Cutscenes/<Name>/`).
+4. **Create a `CutsceneDefinitionSO`** (`Create > Cleanbot > Cutscenes > Definition`). Set `id`, assign `cutscenePrefab`, and assign a `trigger` `VoidEventSO`.
+5. **Add the definition to the catalog** (`cutscenes` list).
+6. **Make something raise the trigger** — reuse an existing signal like `newGameStarted`, or a new `VoidEventSO` raised from wherever the cutscene should start. **No director edit.**
 
 ## 7. Assembly dependencies
 
 | Assembly | References |
 |---|---|
-| `Cutscenes` | `Core`, `Unity.Timeline` |
+| `Cutscenes` | `Core` (incl. `Core.Events.VoidEventSO`), `Unity.Timeline` |
 
 ---
 
@@ -239,7 +332,7 @@ to check whether they should react.
 2. Modules never read `ModuleInput` directly — only `Actor` subscribes to it, and only while possessed. A module declares what it reacts to via `ReactsTo`; it never checks "am I the possessed one" itself, and is simply never called if it isn't.
 3. A module finds its owner via `GetComponentInParent<ActorHost>()` in `Awake`, never via a hand-assigned Inspector reference — this is what lets the same module component be dropped under any possessable character without per-prefab wiring.
 4. **Known inconsistency:** `ActorHost.cs` physically lives under `Core/Player/` (and so compiles into `Core.asmdef`) but is declared `namespace Features.Character` — matching neither its folder nor the `Features.Player.Characters` asmdef (which currently has nothing in it). `ActorHost` was deliberately placed in Core despite being a `MonoBehaviour` — the doc comment in the file itself says so — so the namespace should read `Core.Player` to match where it actually compiles. Not yet fixed.
-5. `Features/Modules` (where `WalkModule` lives) has no `.asmdef` of its own, so nothing mechanically stops it from referencing other Features directly — the dependency-direction test (architecture-foundations.md §6.2) isn't enforced here the way it is for `Cutscenes`/`Features.Title`/`Features.Player.Characters`.
+5. `Features/Modules` (where `WalkModule` lives) now has `Features.Modules.asmdef` referencing only `Core`, so the dependency-direction test (architecture-foundations.md §6.2) **is** enforced — it cannot reference other Features. (This corrects an earlier state where it compiled into the default `Assembly-CSharp`.)
 6. `Posession` exposes `Available` but not who's currently possessed — fine while nothing outside `Posession`/`Actor` needs to query it, but the first feature that does (camera switching, a UI indicator) will need a public `Current` accessor added.
 7. `Posession.OnPossessionChanged` is declared but never raised inside `Posess` — dead until something needs to react to a switch.
 8. `TagSet` has no `Add`/`Remove`/`HasAny` implemented — any module's blocking-tag check is a TODO, not yet functional.
@@ -289,7 +382,7 @@ public class WalkModule : MonoBehaviour, IModule
 | `Core` (includes `Core/Player/*`) | none |
 | `Features.Input` | `Core`, `Unity.InputSystem` |
 | `Features.Player.Characters` | `Core` — currently empty; `ActorHost.cs` compiles into `Core` instead (Rule 4) |
-| — (`Features/Modules`) | no asmdef; compiles into the default `Assembly-CSharp` (Rule 5) |
+| `Features.Modules` | `Core` (Rule 5) |
 
 ---
 
