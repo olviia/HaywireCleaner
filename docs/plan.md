@@ -31,27 +31,23 @@ to do community:
  
 - 
 
-in progress dev:
-- awakening sequence - dizzying overlay + quest reveal
+todo/in progress  dev:
+- awakening sequence - text reveal + quest reveal
 - meaning we need to introduce quest system now. and build base ui for the quest system
 - tutorial prompt
 - leaving the dock station, going to gameplay
-- camera traansition, door animation, scene async loading
-- at the end of door animation, activate preloaded scene
-- charging platform setting 'Charging' tag and removing it when we are not on the platform
-- charging station
+- ◻ Build minimal Settings screen
+- Add audio minimal sounds
 
 
 ◻ Build minimal save/load seam (slowly building when other components are added)
 make cutscene images slighty longer
 
-todo this sprint dev:
-
-◻ Build minimal Settings screen
-- Add audio minimal sounds
-
 done dev:
 
+- - charging station - interactable
+- door animation - interactable
+- awakening sequence - dizzying overlay
 + add 1 popup for when light appears
 + add 1 popup for when we collect all dust
 + - - start making the second prototype
