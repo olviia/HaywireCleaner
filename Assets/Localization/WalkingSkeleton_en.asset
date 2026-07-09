@@ -46,6 +46,10 @@ MonoBehaviour:
     m_Localized: Stop Charge
     m_Metadata:
       m_Items: []
+  - m_Id: 8648805817114624
+    m_Localized: System Initialize...
+    m_Metadata:
+      m_Items: []
   references:
     version: 2
     RefIds: []

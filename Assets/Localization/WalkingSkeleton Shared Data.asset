@@ -43,6 +43,10 @@ MonoBehaviour:
     m_Key: UI.Interact.StopCharge
     m_Metadata:
       m_Items: []
+  - m_Id: 8648805817114624
+    m_Key: Cutscene.SystemInitialize
+    m_Metadata:
+      m_Items: []
   m_Metadata:
     m_Items: []
   m_KeyGenerator:

@@ -1,4 +1,4 @@
 {
   "name": "Features.UI",
-  "references": ["Core", "Unity.TextMeshPro"]
+  "references": ["Core", "Unity.Timeline", "Unity.TextMeshPro"]
 }
