@@ -47,7 +47,39 @@ MonoBehaviour:
     m_Metadata:
       m_Items: []
   - m_Id: 8648805817114624
-    m_Localized: System Initialize...
+    m_Localized: Initializing system...
+    m_Metadata:
+      m_Items: []
+  - m_Id: 8717435785719808
+    m_Localized: Reaching control module...
+    m_Metadata:
+      m_Items: []
+  - m_Id: 8717911935692800
+    m_Localized: '>Failed'
+    m_Metadata:
+      m_Items: []
+  - m_Id: 8718435737153536
+    m_Localized: Attempting recovery...
+    m_Metadata:
+      m_Items: []
+  - m_Id: 8718550531059712
+    m_Localized: "\t> CRITICAL ERROR"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 8718592625094656
+    m_Localized: Halting initialization...
+    m_Metadata:
+      m_Items: []
+  - m_Id: 8718664532242432
+    m_Localized: "Halting initializ\u2014"
+    m_Metadata:
+      m_Items: []
+  - m_Id: 8718721058877440
+    m_Localized: "Prepa\u0336r\u0337i\u0338to h\u0334a\u0336l\u0334..."
+    m_Metadata:
+      m_Items: []
+  - m_Id: 8718798921936896
+    m_Localized: "h\u0336 r\u0337\xEB\u0338q\u0334\u1E85\u0336 g\u0337..."
     m_Metadata:
       m_Items: []
   references:
