@@ -1,8 +1,7 @@
-using TMPro;
 using UnityEngine;
 using UnityEngine.Timeline;
 
-namespace Features.UI
+namespace Features.Cutscenes
 {
     /// <summary>
     /// this class is for revealing text in cutscenes

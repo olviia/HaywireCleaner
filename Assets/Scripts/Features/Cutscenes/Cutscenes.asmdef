@@ -1,4 +1,4 @@
 {
   "name": "Cutscenes",
-  "references": ["Core", "Unity.Timeline"]
+  "references": ["Core", "Unity.Timeline", "Unity.TextMeshPro"]
 }
