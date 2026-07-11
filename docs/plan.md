@@ -32,10 +32,10 @@ to do community:
 - 
 
 todo/in progress  dev:
-- awakening sequence - text reveal + quest reveal
+- awakening sequence - quest reveal
+- now will be time to save the progress with quests
 - meaning we need to introduce quest system now. and build base ui for the quest system
 - tutorial prompt
-- leaving the dock station, going to gameplay
 - ◻ Build minimal Settings screen
 - Add audio minimal sounds
 
@@ -45,6 +45,7 @@ make cutscene images slighty longer
 
 done dev:
 
+-awakening sequence - text reveal
 - - charging station - interactable
 - door animation - interactable
 - awakening sequence - dizzying overlay

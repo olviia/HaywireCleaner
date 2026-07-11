@@ -9,8 +9,6 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ead183f4ed4c4b3682dbaabce6d3fcca, type: 3}
-  m_Name: CutsceneCatalog
-  m_EditorClassIdentifier: Cutscenes::Features.Cutscenes.CutsceneCatalogSO
-  cutscenes:
-  - {fileID: 11400000, guid: b479c953ee9042647ab40e4e0902e015, type: 2}
+  m_Script: {fileID: 11500000, guid: 7ab286f56e1a4768b55eb497363eb3cc, type: 3}
+  m_Name: SystemInitialiseCutscenePlay
+  m_EditorClassIdentifier: Core::Core.Events.VoidEventSO

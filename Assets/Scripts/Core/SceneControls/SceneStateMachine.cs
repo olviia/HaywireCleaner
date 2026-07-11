@@ -6,10 +6,7 @@ namespace Core.SceneControls
     public enum GameScene
     {
         Title,
-        DockStation,
-        Gameplay, 
-        Prototype1,
-        Prototype2
+        Gameplay
     }
     /// <summary>
     /// Core seam for app-level screens (Title, Gameplay, ...). Features call

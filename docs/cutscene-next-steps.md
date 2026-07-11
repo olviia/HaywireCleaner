@@ -44,27 +44,3 @@ walks around the bot when enough is cleaned.
   data-driven catalog) **vs** make the director scene-resident and drive the
   real objects directly (easier to bind, less self-contained).
 
-## Scope 3 — Lock player control during a cutscene
-
-**Goal:** player can't move the bot while a cutscene plays.
-
-- **Seam already exists** (Input Routing doc §6 spelled out the path): switch
-  input contexts by **enabling/disabling action maps**. On cutscene start,
-  disable the `Player` map (or switch to a `Cutscene`/`UI` map) → no
-  `Move`/`Interact` intents raised → the possessed bot receives nothing. No
-  scattered `if (inCutscene) return`. Re-enable on stop. (This is the God of War
-  / Uncharted "gameplay input is a context a cinematic suspends" model.)
-- **Wiring:** director already knows start (`Play`) and end (`playable.stopped`);
-  raise `cutsceneStarted` / `cutsceneEnded` `VoidEventSO`s; `InputReader` (or a
-  tiny input-context controller) toggles the map. Same shape as `newGameStarted`
-  — event-channel, Core-mediated, no feature→feature reference.
-- **Gotcha — velocity carry-over:** `WalkModule` sets `rb.linearVelocity` from
-  Move. Kill input and no new Move arrives, so the bot keeps gliding at its last
-  velocity. The transition must zero it — or `WalkModule` should damp to zero on
-  absence of input (which real locomotion does anyway).
-- **Growth path — stacking:** a single bool breaks once cutscene *and* pause
-  *and* dialogue all want to suspend input. AAA uses an input-context **stack**
-  (push "cutscene", pop it). Single flag is honest for now.
-- **Textbook version:** a small gameplay-state (`Gameplay ↔ Cinematic`) owns the
-  decision; director and input both observe it. At current size,
-  director-raises-events → input-toggles-map is the right amount of structure.

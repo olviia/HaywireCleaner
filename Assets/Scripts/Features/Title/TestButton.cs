@@ -19,11 +19,6 @@ namespace Features.Title
             SceneStateMachine.ChangeSceneTo(GameScene.Gameplay);
         }
 
-        public void OnGoToPrototypeButton()
-        {
-            SceneStateMachine.ChangeSceneTo(GameScene.Prototype1);
-        }
-
         public void OnSwitchLocale()
         {
             var currentLocale = LocalizationSettings.SelectedLocale;

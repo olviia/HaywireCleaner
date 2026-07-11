@@ -17,6 +17,9 @@ namespace Features.Input
         private InputGlyphProvider glyphs; //we'll get the map here from installer
 
         private InputActionMap player;
+        private InputActionMap cinematic;
+        private InputActionMap menu;
+        
         private readonly Dictionary<Intent, InputAction> map = new();
         
         //here cach the actions that we get from intentbindings map
@@ -27,6 +30,8 @@ namespace Features.Input
         private void Awake()
         {
             player = actions.FindActionMap("Player");
+            cinematic = actions.FindActionMap("Cinematic");
+            menu = actions.FindActionMap("UI");
             
             move = actions.FindAction("Move");
             interact = actions.FindAction("Interact");
@@ -40,9 +45,13 @@ namespace Features.Input
             GlyphInput.Register(glyphs); //give the glyphs to the core
         }
 
-        private void OnEnable()=> player.Enable();
-        
-        private void OnDisable() => player.Disable();
+        private void OnEnable()
+        {
+            InputRouter.ContextChangedTo += Apply;
+            Apply(InputRouter.ActiveContext);
+        }
+
+        private void OnDisable() => InputRouter.ContextChangedTo -= Apply;
 
         private void OnDestroy()
         {
@@ -61,6 +70,22 @@ namespace Features.Input
         {
             ModuleInput.RaiseInteract();
             ModuleInput.RaiseStopCharging();
+        }
+
+        private void Apply(InputContext context)
+        {
+            player.Disable();
+            cinematic.Disable();
+            menu.Disable();
+
+            var activeMap = context switch
+            {
+                InputContext.Menu => menu,
+                InputContext.Cutscene => cinematic,
+                InputContext.Gameplay => player,
+                _ => player
+            };
+            activeMap.Enable();
         }
         
     }

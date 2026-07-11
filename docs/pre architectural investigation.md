@@ -115,34 +115,6 @@ if module reacts, and requires animation from the player, it says to core to not
 player to play this animation 
 and to play some sound
 
-Mapping your description onto named patterns
-
-
-────────────────────────────────────────
-Your line: "core says swap... posess/unposess"
-Pattern: Possession (Strategy at the actor level)
-Where it's already in your docs: what architector does.md #2-3:        
-"generic
-controlled actor," "which character is currently controlled"
-────────────────────────────────────────
-Your line: module attaches at named mountpoints "as a mesh"
-Pattern: Socket-based composition (Component + identity vocabulary)    
-Where it's already in your docs: new — not yet in foundations.md, see  
-below
-────────────────────────────────────────
-Your line: "reacts if it can, if nothing obscures, if not mid-action"  
-Pattern: Ability gating via tags
-Where it's already in your docs: foundations.md §2.1 — this is GAS's   
-ActivationBlockedTags/CanActivateAbility(), which you already cited  
-yourself
-────────────────────────────────────────
-Your line: module → core → player: play animation + sound
-Pattern: GameplayCue / decoupled cosmetic Observer
-Where it's already in your docs: same shape as
-CutsceneDirector.OnPlayRequested →  CutscenePlayer, already shipped  
-in
-this repo
-
 
 
 
