@@ -22,29 +22,10 @@ namespace Features.Quests.Progression
                 accumulated += Time.deltaTime;
                 if (accumulated >= requiredSeconds)
                 {
+                    Debug.Log($"[Fact] fact key '{FactKey}' added");
                     WorldState.SetFlag(FactKey, true);
                     Destroy(gameObject); //crear itself from the scene
                 }
-            }
-        }
-
-        public class AxisInputDwell : DwellTracker
-        {
-            private enum Axis {Vertical, Horizontal}
-
-            [SerializeField] private Axis axis;
-            private Vector2 latestMove;
-            protected override string FactKey => 
-                    axis == Axis.Vertical? FactKeys.TutorialPlayerMoved: FactKeys.TutorialPlayerRotated;
-            protected override float Intensity() => 
-                    Mathf.Abs(axis == Axis.Vertical? latestMove.y : latestMove.x);
-
-            void OnEnable() => ModuleInput.OnIntent += OnIntent;
-            void OnDisable() => ModuleInput.OnIntent -= OnIntent;
-
-            private void OnIntent(Intent intent, Vector2 value)
-            {
-                if(intent == Intent.Move) latestMove = value;
             }
         }
     }

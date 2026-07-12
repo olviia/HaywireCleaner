@@ -1,510 +1,430 @@
-# Scene Flow Architecture
+# HaywireCleaner — Architecture (as built)
 
-**Status:** Implemented
-**Scope:** Title ↔ Gameplay scene transitions
+*Living map of the actual code under `Assets/Scripts`. Companion to
+`architecture-foundations.md` (the theory — why the boundaries are where they
+are) and `quest-system-structure.md` (the reactive-narrative research this
+project's fact system implements). This file is the **coarse map**: what the
+systems are, where they live, how they depend on each other, and the gotchas
+that aren't visible from any single file. It points into the code; it does not
+duplicate signatures — read the file for details.*
 
-## 1. Overview
+**Last full sweep:** 2026-07-12 (all 79 scripts + 9 asmdefs).
+**Maintenance rule:** keep it coarse and stable. Update a section when a system
+changes shape or a stated invariant/status stops being true — not for every
+edit. A map that lies is worse than none.
 
-Scene transitions are split into three components, each with a single
-responsibility. Features request transitions through a shared vocabulary and
-never interact with Unity's scene system directly.
+---
 
-## 2. Components
+## 0. The map (read this first)
 
-| Component | Location | Responsibility | Used by |
-|---|---|---|---|
-| `SceneStateMachine` | `Core/SceneStateMachine.cs` | Defines the transition vocabulary: current scene state, transition request method, transition event | Features, `SceneLoader` |
-| `SceneLoader` | `Core/SceneLoader.cs` | Loads/unloads Unity scenes via `SceneManager` in response to transitions | `Bootstrap` only |
-| `Bootstrap` | `App/Bootstrap.cs` (asmdef `App`, namespace `Bootstrap`) | Composition root. `[RuntimeInitializeOnLoadMethod(BeforeSceneLoad)]` configures the scene name map and connects `SceneStateMachine` to `SceneLoader` at startup | — |
+### The one idea everything narrative hangs on — the fact spine
 
-## 3. API
+**All persistent game/narrative state is flags and counters in one static store,
+`WorldState`. Systems *write* facts and *react* to the `WorldState.FactChanged`
+signal; they never call each other directly.** A "condition" is data
+(`FactCondition`) evaluated against that store. Quests, cutscene gating, and the
+tutorial trackers are all just writers and readers of facts. Keys are never
+hand-typed — every key is minted in exactly one place, `FactKeys`, and surfaced
+to authoring through an editor dropdown. This is the CD-Projekt/Osiris "facts +
+generic conditions" shape; the reasoning is in `quest-system-structure.md`.
 
-| Method / Event | Owner | Purpose |
+### Systems index
+
+| # | System | One-line | Entry file(s) | Status |
+|---|---|---|---|---|
+| 1 | **Fact spine** | Persistent flag/counter store + `FactChanged`; *is* the save | `Core/SaveSystem/WorldState.cs`, `FactKeys.cs`, `SaveData.cs`, `Features/Quests/FactCondition.cs` | Live |
+| 2 | **Fact-key tooling** (editor) | Dropdown of every valid key, gathered from code + assets | `Assets/Scripts/Editor/FactKeyRegistry/*` | Live (editor-only) |
+| 3 | **Quests** | Conditions over facts; stage counter is the source of truth | `Features/Quests/*` (+ `Progression/DwellTracker.cs`) | Data + skeleton; **brain stubbed** |
+| 4 | **Cutscenes** | Data-driven, event-triggered Timeline playback; writes finished-fact | `Features/Cutscenes/*` | Live |
+| 5 | **Session intent / new-game** | Carries New-Game vs Continue across the scene load | `Core/SceneControls/GameSession.cs`, `App/GameplayBootstrap.cs` | Live (New-Game path) |
+| 6 | **Scene flow** | Title↔Gameplay additive load, behind one vocabulary | `Core/SceneControls/SceneStateMachine.cs`, `SceneLoader.cs`, `App/Bootstrap.cs` | Live |
+| 7 | **Possession & modules** | Which actor gets input; modules react to typed intents | `Core/Player/*`, `Features/Modules/*` | Live (one actor) |
+| 8 | **Input routing** | Device→`Intent`; context stack; glyph display projection | `Features/Input/InputReader.cs`, `Core/Input/*` | Live (Player/Cutscene) |
+| 9 | **Interaction & docking** | Focus sensor, interactables, charging dock | `Core/Interaction/*`, `Features/Modules/InteractionModule.cs`+`ChargingModule.cs`, `Features/Interactables/*` | Live |
+| 10 | **UI prompt / mount** | SO event channels for prompt + prefab mounting | `Core/Events/UI*RequestSO.cs`, `Features/UI/*` | Live |
+
+### Dependency direction (the only arrows allowed)
+
+```
+  App(Bootstrap)   Features.*(Input, Modules, Cutscenes, Interactables, UI, Quests, Title)
+        \                 \        \        \         \        \       /
+         \                 \        \        \         \        \     /
+          └──────────────────────────── Core ─────────────────────┘
+                    (SaveSystem · Player · Input · Interaction ·
+                     Events · SceneControls)
+
+  Features → Core only.  Feature → Feature: never.  Core → nothing above it.
+  App(Bootstrap) → Core, and is the one place allowed to know Feature scene
+  names / wire event assets (composition root).
+```
+
+Enforced mechanically: every Feature asmdef references **only `Core`** (plus
+Unity packages). Verify: no Feature asmdef lists another Feature.
+
+### Assemblies (asmdef → references)
+
+| Assembly | References | Notes |
 |---|---|---|
-| `SceneStateMachine.ChangeSceneTo(GameScene next)` | `SceneStateMachine` | Request a transition to `next` |
-| `SceneStateMachine.OnGameSceneChanged(from, to)` | `SceneStateMachine` | Raised when a transition is requested |
-| `SceneLoader.Initialize(map)` | `SceneLoader` | Set the `GameScene → scene name` map (called once, by Bootstrap) |
-| `SceneLoader.LoadScene(from, to)` | `SceneLoader` | Load `to` additively, unload `from` on completion |
-| `SceneLoader.OnSceneLoaded(GameScene to)` | `SceneLoader` | Raised once `to` has actually finished loading (from inside `loadOperation.completed`) — fires after the new scene's `MonoBehaviour`s have already run `OnEnable` |
+| `Core` | `Unity.Localization` | Was "references nothing"; now pulls Localization. Still references no Feature. |
+| `App` | `Core` | `Bootstrap`, `GameplayBootstrap` (namespace `Bootstrap`) |
+| `Features.Input` | `Core`, `Unity.InputSystem` | The Input System package is quarantined here |
+| `Features.Modules` | `Core` | |
+| `Cutscenes` | `Core`, `Unity.Timeline`, `Unity.TextMeshPro` | asmdef name is `Cutscenes`, not `Features.Cutscenes` |
+| `Features.Interactables` | `Core`, `Unity.Localization` | |
+| `Features.UI` | `Core`, `Unity.TextMeshPro` | |
+| `Features.Quests` | `Core`, `Unity.Localization` | |
+| `Features.Title` | `Core`, `Unity.Localization` | |
+| *(none)* — `Editor/FactKeyRegistry/*`, `Editor/FontToSprite.cs` | predefined `Assembly-CSharp-Editor` | auto-references all asmdefs; namespace `Tools.FactKeyRegistry` / `Tools` |
+| *(none)* — `Prototypes/*`, `FpvSlimPrototype/*`, `MyScript.cs` | predefined `Assembly-CSharp` | **scratch, not architecture** — see Appendix A |
 
-## 4. Rules
+### The narrative stack, end to end (the trace to hold onto)
 
-1. Features request transitions only via `SceneStateMachine.ChangeSceneTo`.
-2. No code outside `Core/SceneLoader.cs` may call `UnityEngine.SceneManagement.SceneManager`.
-3. `Bootstrap` is the only component permitted to call `SceneLoader` directly.
-4. Anything that needs to act only once a target scene's objects exist (e.g. finding a `MonoBehaviour` that just got loaded) must subscribe to `SceneLoader.OnSceneLoaded`, not `SceneStateMachine.OnGameSceneChanged`. The latter fires synchronously the instant a transition is *requested*, before the async load has even started — *historically*, `CutsceneDirector` firing into a scene whose `CutscenePlayer` didn't exist yet came from exactly this confusion. Both have since been refactored away; the current gameplay-side trigger (`GameplayBootstrap`) instead relies on the all-`OnEnable`-before-all-`Start` ordering *within* the loaded scene — see *Session Intent & New-Game Flow* §4.
-
-## 5. Verification
-
-Run before committing changes that touch scene flow:
+This is the intended spine that ties fact + cutscene + quest + tracker. It is
+**partially wired**: everything up to and including "writes facts" exists; the
+QuestRuntime brain that reacts is still a stub (§3).
 
 ```
-grep -rn "SceneManager\." Assets/Scripts --include=*.cs
+New Game (§5) → intro CutsceneDefinitionSO's eventTrigger raised
+  → CutsceneDirector.Play: InputRouter.Enter(Cutscene); Timeline runs
+  → on playable.stopped: if WritesFinishedFact → WorldState.SetFlag(
+        FactKeys.CutsceneFinished("intro")); eventRaiseOnFinish?.Raise;
+        InputRouter.Exit(Cutscene)
+  → WorldState.FactChanged fires
+  → QuestRuntime (§3): a quest whose startConditions test cutscene.intro.finished
+        is now met → writes quest.{id}.stage = 1  [BRAIN NOT YET IMPLEMENTED]
+  → entering stage 1 instantiates the stage's setupPrefabs, which include a
+        DwellTracker (§3) for "move" and "rotate"
+  → player moves/rotates → DwellTracker accumulates dwell time → writes
+        FactKeys.TutorialPlayerMoved / TutorialPlayerRotated, destroys itself
+  → FactChanged → QuestRuntime rechecks stage-1 objectives, all met → stage = 2 → …
 ```
-
-Expected result: matches only in `Core/SceneLoader.cs`.
-
-## 6. Usage example
-
-```csharp
-// Feature code requesting a transition
-SceneStateMachine.ChangeSceneTo(GameScene.Gameplay);
-```
-
-## 7. Assembly dependencies
-
-| Assembly | References |
-|---|---|
-| `Core` | none |
-| `App` (namespace `Bootstrap`) | `Core` |
-| `Features.*` | `Core` |
 
 ---
 
-# Save System Architecture
+## 1. Fact spine — `WorldState` + `FactKeys` + `FactCondition`
 
-**Status:** Implemented — `flags` only (other dictionaries exist but have no accessors yet). Note: the typed flag Get/Set API currently has **no caller** — the cutscene director was its only user and stopped using it when play-once gating was removed. `NewSave`/`Save` are the only live entry points today.
-**Scope:** typed save-game persistence (JSON to disk)
+**Status:** Live and load-bearing. (This section supersedes the old "Save
+System" write-up, which described the flag API as having *no caller* — that is
+long obsolete; this is now the busiest seam in the game.)
 
-## 1. Overview
+### Components
 
-World/save state lives in one mediator, `WorldState`. It owns the only
-instance of `SaveData` in memory and is the only thing allowed to read or
-write it. Features never see `SaveData` itself — they call `WorldState`'s
-narrow, typed Get/Set API.
-
-## 2. Components
-
-| Component | Location | Responsibility | Used by |
-|---|---|---|---|
-| `WorldState` | `Core/SaveSystem/WorldState.cs` | Mediator: owns the current `SaveData` in memory, exposes typed Get/Set API, owns JSON file I/O | `GameFlow` (`NewSave`), `TestButton` (`Save`); typed flag Get/Set API currently has **no caller** |
-| `SaveData` | `Core/SaveSystem/SaveData.cs` | `internal` plain data container — value-shape-typed dictionaries (`flags: bool`, `counters: int`, `reactions: float`, `names: string`, `positions: Vector3`, `attributeValues: float`) plus `ownedModuleId`/`skillId` lists and character/version/timestamp fields | `WorldState` only |
-
-## 3. API
-
-| Method | Owner | Purpose |
+| Component | Location | Responsibility |
 |---|---|---|
-| `WorldState.GetFlag(string key)` / `SetFlag(string key, bool value)` | `WorldState` | Typed bool flag read/write |
-| `WorldState.Save()` | `WorldState` | Serializes the current `SaveData` to `Application.persistentDataPath/save.json` (Newtonsoft Json) |
-| `WorldState.Load()` | `WorldState` | Deserializes `SaveData` back from that file |
-| `WorldState.NewSave()` | `WorldState` | Replaces the current `SaveData` with a fresh, empty one — called by `GameFlow.StartNewGame` |
+| `WorldState` | `Core/SaveSystem/WorldState.cs` | Static mediator over the one in-memory `SaveData`. Typed `GetFlag/SetFlag`, `GetCounter/SetCounter/AddToCounter`. Every setter fires `FactChanged(key)`. Owns JSON file I/O (`Save`/`Load`/`NewSave`; `Load`/`NewSave` fire `FactChanged(null)` = "everything changed"). `SaveExists`. |
+| `SaveData` | `Core/SaveSystem/SaveData.cs` | `internal` plain container. Dictionaries by value-shape: `flags:bool`, `counters:int`, `reactions:float`, `names:string`, `positions:Vector3`, `attributeValues:float`; lists `ownedModuleId`/`skillId`; character + version + `inGameTimeSeconds` + `savedAt`. Only `flags`/`counters` have accessors on `WorldState` today. |
+| `FactKeys` | `Core/SaveSystem/FactKeys.cs` | **The single string authority.** Builder methods `CutsceneFinished(id)`→`cutscene.{id}.finished`, `QuestStage(id)`→`quest.{id}.stage`, `QuestCompleted(id)`→`quest.{id}.completed`; consts `TutorialPlayerMoved`="tutorial.moved", `TutorialPlayerRotated`="tutorial.rotated". Carries `[FactKeySource]` attribute (metadata for the editor registry, §2). |
+| `FactCondition` | `Features/Quests/FactCondition.cs` | Serializable `{factKey, FactTest test, int value}` + `IsMet()`. `FactTest` = `FlagIsTrue`/`FlagIsFalse`/`CounterAtLeast`. The specification/predicate object; pulls from `WorldState`, never pushed to. |
 
-## 4. Rules
+### Who writes / reads facts today
 
-1. `SaveData` is `internal` — code outside `Core/SaveSystem/` cannot even compile a reference to it. Enforced by the compiler, not just convention.
-2. Features build their own save keys via small per-feature static classes shaped `"category.id.field"` (e.g. `Features/Cutscenes/CutsceneSaveKeys.Played(id)` → `"cutscene.{id}.played"`) — `Core` never knows feature category names. (That `CutsceneSaveKeys` example still exists but currently has **no caller** — see *Cutscene System* §2.)
-3. Only `flags` has Get/Set methods on `WorldState` today. `counters`/`reactions`/`names`/`positions`/`attributeValues` exist in `SaveData` but are unused — add a same-shaped accessor pair on `WorldState` (mirroring `GetFlag`/`SetFlag`) the first time a feature actually needs one, rather than exposing all of them up front.
+- **Writers:** `CutsceneDirector` (`SetFlag(CutsceneFinished)`), `DwellTracker`
+  (`SetFlag(Tutorial…)`), `GameFlow.StartNewGame`→`NewSave`, `TestButton`→`Save`.
+  QuestRuntime *will* write `SetCounter(QuestStage)` once its brain lands.
+- **Readers:** `FactCondition.IsMet` (`GetFlag`/`GetCounter`), `CutsceneDirector`
+  (`GetFlag(CutsceneFinished)` for play-once gating).
+- **`FactChanged` subscribers:** `QuestRuntime.OnFactChanged` (only one today).
 
-## 5. Verification
+### Rules & gotchas
 
-```
-grep -rn "SaveData" Assets/Scripts --include=*.cs
-```
-
-Expected result: matches only in `Core/SaveSystem/WorldState.cs` and `Core/SaveSystem/SaveData.cs` itself.
-
-## 6. Usage example
-
-```csharp
-// The typed flag API — shape only; no feature calls it today. The cutscene
-// director used this before play-once gating was removed:
-if (WorldState.GetFlag(someKey)) return;
-WorldState.SetFlag(someKey, true);
-
-// Live callers today:
-WorldState.NewSave();   // GameFlow.StartNewGame
-WorldState.Save();      // TestButton (dev harness)
-```
-
-## 7. Assembly dependencies
-
-`Core/SaveSystem` is a subfolder of `Core`, not a separate assembly — it
-compiles under `Core.asmdef` (no references) like the rest of Core.
+1. **`SaveData` is `internal`** — nothing outside `Core/SaveSystem/` can compile
+   a reference to it. Enforced by the compiler.
+2. **Keys are never hand-typed.** Reader and writer both call the same `FactKeys`
+   method. Key strings *are* the save schema — `FactKeys` is append-only; renaming
+   a key breaks saves.
+3. **`FactChanged` is synchronous.** A `SetFlag`/`SetCounter` inside a
+   `FactChanged` handler re-enters all handlers before the setter returns. Fine
+   and idempotent at this scale; mind it when QuestRuntime advances a stage from
+   inside its own handler (it recurses into the next stage).
+4. **`currentSaveData` starts null.** `GetFlag`/`GetCounter` before a
+   `NewSave()`/`Load()` will NPE. `GameFlow.StartNewGame` calls `NewSave` first;
+   entering Gameplay by any path that skips it (e.g. `TestButton.OnGoToGameplayButton`)
+   leaves the store null. Something must seed it.
+5. Add a new accessor pair on `WorldState` (mirroring `GetFlag`/`SetFlag`) the
+   first time a feature needs `reactions`/`names`/`positions`/`attributeValues` —
+   don't expose all of them up front.
 
 ---
 
-# Session Intent & New-Game Flow Architecture
+## 2. Fact-key tooling (editor)
 
-**Status:** Implemented — a **New Game** press drives the intro cutscene end
-to end. `Continue` and `None` branches are stubs (`LoadSavedGame` /
-`InitializeNewGame` are empty). `GameFlow`'s `OnNewGameRequested` /
-`OnLoadGameRequested` events still fire but have **no subscribers** (dead), and
-`GameFlow.LoadGame()` has no callers.
-**Scope:** how "which way did we enter gameplay" (New Game vs Continue) crosses
-the Title→Gameplay scene boundary and fans out to gameplay systems (today: the
-intro cutscene).
+**Status:** Live, editor-only. Built before the first quest asset was authored
+(tooling-before-authoring). Lets an authored `FactCondition` pick its key from a
+hierarchical dropdown of *every* valid key in the project, instead of typing
+strings.
 
-## 1. Overview
+### Components (all `namespace Tools.FactKeyRegistry`, no asmdef → `Assembly-CSharp-Editor`)
 
-Entry intent is carried as **data, not a live object**. `GameSession` (a
-ScriptableObject) holds a transient `EntryMode`; the Title menu writes it, the
-Gameplay scene reads it once and acts. Because the reader lives on the gameplay
-side, the "new game started" broadcast (`newGameStarted`, a `VoidEventSO`) is
-raised only *after* the Gameplay scene and its listeners exist — the fix for the
-listener-lifetime bug that firing an event straight from the menu button would
-have caused.
-
-`GameFlow` (pre-existing, static) still owns the mechanical transition —
-`WorldState.NewSave()` + `SceneStateMachine.ChangeSceneTo`. The button calls
-*both*: `GameSession.Request(NewGame)` for intent, `GameFlow.StartNewGame()` for
-the save-reset + scene change. Intent and transition are two concerns on two
-objects.
-
-## 2. Components
-
-| Component | Location | Responsibility | Used by |
-|---|---|---|---|
-| `GameSession` | `Core/SceneControls/GameSession.cs` | SO carrying `EntryMode {None,NewGame,Continue}`. `Request(mode)` writes it (menu side); `Consume()` reads-and-resets it (gameplay side, consume-once); `OnEnable` resets to `None` for editor hygiene. `PendingEntry` is a read-only getter for inspector visibility. Menu: `Cleanbot/App/GameSession` | `StartNewGameButton`, `GameplayBootstrap` |
-| `VoidEventSO` | `Core/Events/VoidEventSO.cs` | Payload-less SO event channel: `event Action Raised` + `RaiseAction()`. The reusable "something happened" broadcast primitive. Menu: `Cleanbot/Events/VoidEventSO` | `GameplayBootstrap` (raises `newGameStarted`), `CutsceneDirector` (subscribes via each definition's `trigger`) |
-| `GameplayBootstrap` | `App/GameplayBootstrap.cs` (namespace `Bootstrap`) | `MonoBehaviour` in the Gameplay scene. On `Start`, switches on `session.Consume()` — `NewGame`: `InitializeNewGame()` (stub) + `newGameStarted.RaiseAction()`; `Continue`: `LoadSavedGame()` (stub); `None`: nothing | — |
-| `StartNewGameButton` | `Features/Title/StartNewGameButton.cs` | `MonoBehaviour` on the New Game button. `StartNewGame()` (wired via the Button's inspector `onClick`, not `AddListener`): `gameSession.Request(NewGame)` then `GameFlow.StartNewGame()` | — |
-| `GameFlow` | `Core/SceneControls/GameFlow.cs` | Static. `StartNewGame()`: `WorldState.NewSave()` + fires (dead) `OnNewGameRequested` + `ChangeSceneTo(Gameplay)`. `LoadGame()`: fires (dead) `OnLoadGameRequested` + `ChangeSceneTo(Gameplay)` — no callers | `StartNewGameButton`, `TestButton` |
-| `TestButton` | `Features/Title/TestButton.cs` | Dev-only harness (locale switch, `WorldState.Save()` test, scene nav). Its `StartNewGame()` calls `GameFlow.StartNewGame()` **without** setting `GameSession` intent — so entering gameplay via `TestButton` leaves intent `None` and the intro does **not** play | — |
-
-## 3. The flow
-
-```
-StartNewGameButton.StartNewGame()          [Title scene, Button.onClick]
-  ├─ gameSession.Request(EntryMode.NewGame)            // leave the note
-  └─ GameFlow.StartNewGame()
-       ├─ WorldState.NewSave()
-       ├─ OnNewGameRequested?.Invoke()                 // dead — no subscribers
-       └─ SceneStateMachine.ChangeSceneTo(Gameplay)    // → SceneLoader loads Gameplay
-
-Gameplay scene finishes loading
-  ├─ CutsceneDirector.OnEnable()   subscribes to newGameStarted.Raised (via NewGameIntro.trigger)
-  └─ GameplayBootstrap.Start()     session.Consume() == NewGame
-       ├─ InitializeNewGame()                          // stub
-       └─ newGameStarted.RaiseAction() ─────────────►  CutsceneDirector plays NewGameIntro
-```
-
-## 4. Rules
-
-1. **`GameSession` is consume-once.** `Consume()` reads and clears in one call; `OnEnable` also resets to `None`. A second read yields `None`. This — not a saved flag — is what stops the intro replaying on a later scene reload.
-2. **Timing is safe by lifecycle order.** The raise happens in `GameplayBootstrap.Start`; listeners subscribe in `OnEnable`. Unity runs *all* `OnEnable` before *any* `Start` within a loaded scene, so the director is subscribed before the intro fires. Keep the raise in `Start` (not `Awake`/`OnEnable`) and no sticky/replay channel is needed.
-3. **Two wires must point at the *same* asset** (silent failure otherwise): the same `GameSession` asset in `StartNewGameButton.gameSession` and `GameplayBootstrap.session`; the same `VoidEventSO` asset in `GameplayBootstrap.newGameStarted` and the `NewGameIntro` definition's `trigger`.
-4. **`GameFlow` coexists with `GameSession` deliberately, but its events are dead.** `GameFlow` provides `NewSave` + the scene change; `GameSession` carries the gameplay-side intent. `OnNewGameRequested` / `OnLoadGameRequested` currently have no subscribers — the gameplay-side signal is `newGameStarted`, not these. Either wire them or delete them; right now they are noise.
-5. **`GameplayBootstrap` Continue/None branches are stubs** — the load-game path isn't implemented.
-
-## 5. Verification
-
-```
-grep -rn "RaiseAction\|\.Raised" Assets/Scripts --include=*.cs
-```
-
-Expected: `newGameStarted` raised only in `GameplayBootstrap.cs`; `Raised` subscribed to only in `CutsceneDirector.cs` (plus the `VoidEventSO` type itself).
-
-## 6. Assembly dependencies
-
-| Assembly | References |
-|---|---|
-| `Core` (`Core/SceneControls`, `Core/Events`) | none |
-| `App` (folder `App/`, asmdef `App`, namespace `Bootstrap`) | `Core` — no reference to any Feature; it reaches Cutscenes only *indirectly*, by raising a `VoidEventSO` the Cutscenes assembly listens to |
-| `Features.Title` | `Core`, `Unity.Localization` |
-
----
-
-# Cutscene System Architecture
-
-**Status:** Implemented and **data-driven**. Each cutscene declares its own
-trigger event; `CutsceneDirector` subscribes to all of them and plays on raise.
-Adding a cutscene needs **no code change**. Play-once gating has been
-**removed** — the director no longer touches the save system.
-**Scope:** data-driven cutscene definitions, event-triggered dispatch, prefab +
-Timeline playback.
-
-## 1. Overview
-
-A cutscene is data (`CutsceneDefinitionSO`) that carries both its content *and*
-the event that triggers it (`VoidEventSO trigger`) — content declares its own
-activation, the same shape as Unreal's GAS abilities. Definitions are listed in
-a catalog (`CutsceneCatalogSO`). `CutsceneDirector` (now a single
-`MonoBehaviour`) subscribes to every definition's `trigger` in its catalog and,
-on raise, instantiates that cutscene's prefab and plays its `PlayableDirector`.
-There is no central "which cutscene / when" logic, no scene-gating, and no
-save-flag gating — the trigger *is* the decision, and it lives on the data.
-
-The old static director + separate `CutscenePlayer` + `OnPlayRequested` hop +
-`Resources.Load` catalog + `WorldState` played-flag are all gone (see git
-history). `CutscenePlayer.cs` was deleted; its playback logic folded into the
-director once the director became a `MonoBehaviour`.
-
-## 2. Components
-
-| Component | Location | Responsibility | Used by |
-|---|---|---|---|
-| `CutsceneCatalogSO` | `Features/Cutscenes/CutsceneCatalogSO.cs` | SO: hand-curated `List<CutsceneDefinitionSO> cutscenes`. Assigned to the director via a **serialized reference** (no longer `Resources.Load`). Menu: `Cleanbot/Cutscenes/Catalog` | `CutsceneDirector` |
-| `CutsceneDefinitionSO` | `Features/Cutscenes/CutsceneDefinitionSO.cs` | SO: one cutscene's data — `id`, `cutscenePrefab` (`GameObject`, must carry a `PlayableDirector`), `trigger` (`VoidEventSO`, what fires it), `replayable` (bool, **currently vestigial** — no longer read). Menu: `Cleanbot/Cutscenes/Definition` | `CutsceneCatalogSO`, `CutsceneDirector` |
-| `CutsceneDirector` | `Features/Cutscenes/CutsceneDirector.cs` | `MonoBehaviour`, one per scene that plays cutscenes. `[SerializeField] catalog`. `OnEnable` subscribes a per-definition handler to each `def.trigger.Raised` (storing `(VoidEventSO, Action)` bindings); `OnDisable` unsubscribes all. `Play(def)` instantiates `def.cutscenePrefab`, plays the prefab's `PlayableDirector`, destroys the instance on `stopped` | — |
-| `CutsceneSaveKeys` | `Features/Cutscenes/CutsceneSaveKeys.cs` | Builds `"cutscene.{id}.played"`. **Currently unused** — a leftover of the removed play-once gating; no caller | — (dead) |
-
-## 3. API
-
-| Method / Event | Owner | Purpose |
+| Component | Location | Responsibility |
 |---|---|---|
-| `VoidEventSO.Raised` (`event Action`) / `RaiseAction()` | `Core/Events/VoidEventSO.cs` | The trigger transport. A cutscene's `trigger` is one of these; whoever raises it (e.g. `GameplayBootstrap` raising `newGameStarted`) makes the director play that cutscene. See *Session Intent & New-Game Flow* |
+| `IFactKeySource` | `Editor/FactKeyRegistry/IFactKeySource.cs` | Contract: `IEnumerable<string> GetFactKeys()`. Implement to contribute keys. |
+| `ConstKeySource` | `…/ConstKeySource.cs` | Reflects every `[FactKeySource]`-marked class's public-static-const strings (code-born keys, e.g. the tutorial consts). |
+| `CutsceneKeySource` | `…/CutsceneKeySource.cs` | Enumerates `CutsceneDefinitionSO` assets that opt in, yields `FactKeys.CutsceneFinished(id)`. |
+| `QuestKeySource` | `…/QuestKeySource.cs` | Enumerates `QuestDefinitionSO` assets, yields `FactKeys.QuestCompleted(id)` + `QuestStage(id)`. |
+| `FactKeyRegistry` | `…/FactKeyRegistry.cs` | Static. `Collect()` concatenates all sources, de-dupes. The list backing the dropdown. |
+| `FactKeyDropdown` / `FactKeyDropdownItem` | `…/FactKeyDropdownItem.cs` | `AdvancedDropdown` that splits keys on `.` into a tree; leaf carries the full key. |
+| `FactConditionDrawer` | `…/FactConditionDrawer.cs` | `[CustomPropertyDrawer(typeof(FactCondition))]`. Renders key-dropdown + `test` + (`value` only when `CounterAtLeast`). |
 
-## 4. Rules
-
-1. **Adding a cutscene is code-free.** Create a `CutsceneDefinitionSO`, assign its prefab and its `trigger` (a `VoidEventSO`), add it to the catalog, and make sure *something* raises that event. The director never changes. (The old `TryPlay("<id>", …)` edit in `CheckAllCutscenes()` and the whole per-id dispatch are gone.)
-2. **Playback model is prefab-instantiation, not swap-asset.** Each cutscene is a self-contained prefab carrying its own `PlayableDirector` and its own Timeline **bindings**. The director does *not* hold a shared `PlayableDirector` and does *not* `RequireComponent(PlayableDirector)` — the swap-`playableAsset` approach was considered but not taken. Bindings therefore travel inside the prefab (Rule 4).
-3. **No play-once guard exists.** The director neither reads nor writes `WorldState`. `replayable` and `CutsceneSaveKeys` are vestigial. Replay is prevented *only* by the trigger firing once per session (e.g. `newGameStarted` is raised only on New Game). **If a cutscene's trigger can fire repeatedly, the cutscene replays** — there is no guard. Re-introduce gating (or a consume-once trigger) before wiring a repeatable trigger to a play-once cutscene.
-4. Every `ActivationTrack` in a Timeline needs its bound GameObject dragged onto the track's binding slot explicitly — an unbound track plays silently with no error and does nothing visible. Trim clip durations to the gap before the next clip, or multiple slides stay simultaneously active.
-5. **Timing:** the director subscribes in `OnEnable`; triggers are raised in `Start` (by `GameplayBootstrap`) — all `OnEnable` run before any `Start`, so no raise is missed. See *Session Intent & New-Game Flow* §4.
-6. The `bindings` list exists solely so `OnDisable` can `-=` the per-definition lambdas `OnEnable` added — you cannot unsubscribe a lambda you did not store.
-
-## 5. Verification
-
-```
-grep -rn "OnPlayRequested" Assets/Scripts --include=*.cs
-```
-
-Expected result: **no matches** (removed). `def.trigger.Raised` is subscribed to only in `CutsceneDirector.cs`.
-
-## 6. Authoring workflow — adding a new cutscene
-
-1. **Build the cutscene prefab.** Empty GameObject + `PlayableDirector`, with the visual content under it (e.g. a `Canvas` of full-rect `Image` slides, as `NewGameIntro` does). Leave per-slide objects inactive — Activation Tracks turn them on at runtime.
-2. **Build the Timeline.** Assign a `TimelineAsset` to the prefab's `PlayableDirector`, add tracks/clips, **then drag each bound GameObject onto its track's binding slot** (Rule 4).
-3. **Make it a prefab** by dragging it into the Project window (e.g. `Assets/Cutscenes/<Name>/`).
-4. **Create a `CutsceneDefinitionSO`** (`Create > Cleanbot > Cutscenes > Definition`). Set `id`, assign `cutscenePrefab`, and assign a `trigger` `VoidEventSO`.
-5. **Add the definition to the catalog** (`cutscenes` list).
-6. **Make something raise the trigger** — reuse an existing signal like `newGameStarted`, or a new `VoidEventSO` raised from wherever the cutscene should start. **No director edit.**
-
-## 7. Assembly dependencies
-
-| Assembly | References |
-|---|---|
-| `Cutscenes` | `Core` (incl. `Core.Events.VoidEventSO`), `Unity.Timeline` |
+**Invariant:** the *same* `FactKeys` method computes the key both at author time
+(sources, in-editor) and at runtime (writers/readers). Adding a new derived key
+family = one `FactKeys` method + (if asset-derived) one `IFactKeySource`, then
+register it in `FactKeyRegistry.Sources`.
 
 ---
 
-# Player Possession & Module Input Architecture
+## 3. Quest system
 
-**Status:** Implemented for one actor and one module (`WalkModule`). No
-second possessable character exists yet. Nothing currently triggers initial
-possession automatically — a manual `[ContextMenu]` test method is the only
-way an actor becomes controlled right now. `TagSet` has no methods yet, so
-module-blocking tags aren't usable yet.
-**Scope:** which actor currently receives input, and how a received input
-verb reaches whichever modules are attached to that actor
+**Status:** Data model + `QuestRuntime` skeleton exist; **the brain is a stub** —
+`QuestRuntime.OnFactChanged` loops the catalog but does nothing yet. The
+progression model is decided (see `quest-system-structure.md` §6): **quest
+progress is itself a fact.** `quest.{id}.stage` (a counter) is the source of
+truth — `0` inactive, `1..Length` active on that stage, `>Length` → write
+`quest.{id}.completed`. On load the brain rebuilds from the stage counter; it
+never remembers triggers.
 
-## 1. Overview
+### Components
 
-`Actor` (plain C#, deliberately no `MonoBehaviour`) holds a `TagSet` and a
-list of `IModule`s — it's the thing that gets possessed. `Posession` tracks
-which `Actor` is currently possessed and which others are merely available.
-`ActorHost` is the one `MonoBehaviour` that gives an `Actor` a place in the
-scene; modules find their owning `Actor` by walking up to it, never via a
-hand-assigned reference. Raw input becomes a typed `Intent` via `ModuleInput`,
-and only the currently-possessed `Actor` is ever subscribed to receive one —
-modules belonging to a non-possessed actor are never called at all, not even
-to check whether they should react.
-
-## 2. Components
-
-| Component | Location | Responsibility | Used by |
-|---|---|---|---|
-| `IPosessable` | `Core/Player/IPosessable.cs` | Contract for anything that can be possessed: `OnPosessed`/`OnUnposessed` | `Actor`, `Posession` |
-| `Posession` | `Core/Player/Posession.cs` | Static. Tracks `current` (not yet publicly exposed) and `Available`; `Register`/`Unregister` (called by `ActorHost.OnEnable`/`OnDisable`); `Posess(next)` unpossesses whoever was current, then possesses `next` | `ActorHost` |
-| `Actor` | `Core/Player/Actor.cs` | Plain C#, implements `IPosessable`. Owns a `TagSet` and the `IModule` list. On possessed, subscribes its `Send` method to `ModuleInput.OnIntent`; on unpossessed, unsubscribes. `Send` builds a `Command` and forwards it only to modules whose `ReactsTo` includes the incoming `Intent` | `ActorHost` |
-| `ActorHost` | `Core/Player/ActorHost.cs` | `MonoBehaviour` — Core's one physical anchor for an `Actor` in the scene (see Rule 4 on its namespace). Registers/unregisters its `Actor` with `Posession` on enable/disable. Carries a `[ContextMenu("Possess This")]` test method that calls `Posession.Posess(Actor)` directly — currently the only way anything becomes possessed | Modules, via `GetComponentInParent` |
-| `TagSet` | `Core/Player/TagSet.cs` | Intended to hold state tags an `Actor` currently carries (e.g. `"Climbing"`) for cross-module blocking — class exists, no members implemented yet | `Actor` |
-| `Intent` | `Core/Player/Intent.cs` | Closed enum of command verbs: `Move`, `Interact` (raised from input via `ModuleInput`) plus `Charge`, `StopCharge` (raised from the world via `Actor.Dispatch`) | `ModuleInput`, `Command`, `IModule.ReactsTo`, `Actor.Dispatch` |
-| `Command` | `Core/Player/Command.cs` | `readonly struct` — `WhatToDo` (`Intent`) and `ExtraInfo` (`Vector2`, the payload) | `Actor.Send`, `IModule.Handle` |
-| `ModuleInput` | `Core/Input/ModuleInput.cs` | Static. The **execution projection** transport: `RaiseMove(Vector2)`/`RaiseInteract()` raise `OnIntent`. (The display projection is a separate seam — see *Input Routing Architecture*.) | `InputReader` (raises), `Actor` (subscribes only while possessed) |
-| `IModule` | `Core/Player/IModule.cs` | Contract for a module: `ReactsTo` (`IEnumerable<Intent>`, declared data — not a runtime check) + `Handle(Actor owner, Command cmd)` | `WalkModule` |
-| `InputReader` | `Features/Input/InputReader.cs` | `MonoBehaviour`. The single input adapter (see *Input Routing Architecture*). Owns the `Intent → InputAction` map; pumps `ModuleInput.RaiseMove`/`RaiseInteract` (execution); registers an `InputGlyphProvider` over the same map into `GlyphInput` (display) | — |
-| `WalkModule` | `Features/Modules/WalkModule.cs` | `MonoBehaviour, IModule`. Finds its `ActorHost` via `GetComponentInParent` in `Awake`, self-registers in `OnEnable`/removes itself in `OnDisable`, reacts to `Intent.Move` by setting a `Rigidbody`'s `linearVelocity` | — |
-
-## 3. API
-
-| Method / Event | Owner | Purpose |
+| Component | Location | Responsibility |
 |---|---|---|
-| `Posession.Posess(IPosessable next)` | `Posession` | Make `next` the currently-controlled actor; unpossesses whoever was current first |
-| `Posession.Available` | `Posession` | Query which actors are currently registered (no public way to query *who's currently possessed* yet — see Rule 6) |
-| `Posession.Register` / `Unregister` | `Posession` | Add/remove an actor from `Available` — called by `ActorHost.OnEnable`/`OnDisable`, never by content |
-| `ModuleInput.OnIntent` (`Action<Intent, Vector2>`) | `ModuleInput` | Raised on every raw input sample; only the possessed `Actor` is ever subscribed |
-| `Actor.RegisterModule` / `RemoveModule` | `Actor` | A module adds/removes itself from its owner's dispatch list — called from the module's own `OnEnable`/`OnDisable` |
+| `QuestDefinitionSO` | `Features/Quests/QuestDefinitionSO.cs` | `id`, `title`, `Stage[] stages`, `FactCondition[] startConditions`. Nested: `Stage {journalEntry, Objective[] objective, GameObject[] setupPrefabs}`, `Objective {LocalizedString description, FactCondition condition}`. Menu `Cleanbot/Quests/Definition`. |
+| `QuestCatalogSO` | `Features/Quests/QuestCatalogSO.cs` | `List<QuestDefinitionSO> quests`. Menu `Cleanbot/Quests/Catalog`. |
+| `QuestRuntime` | `Features/Quests/QuestRuntime.cs` | `MonoBehaviour`. Subscribes `WorldState.FactChanged`. Holds `setupStage` (quest→physically-built stage) and `setupInstances` (quest→spawned `setupPrefabs`). **`OnFactChanged` reconcile logic is TODO.** |
+| `DwellTracker` | `Features/Quests/Progression/DwellTracker.cs` | Abstract `MonoBehaviour`: accumulates `Time.deltaTime` while `Intensity() > deadzone`, and after `requiredSeconds` does `SetFlag(FactKey, true)` + destroys itself. Nested concrete `AxisInputDwell` subscribes `ModuleInput.OnIntent`, maps a `Vertical`/`Horizontal` axis to `TutorialPlayerMoved`/`TutorialPlayerRotated`. This is an *objective-completion writer* — it lives inside a stage's `setupPrefabs`. |
 
-## 4. Rules
+### Intended brain (agreed, not yet typed — this session's work)
 
-1. **Nothing is possessed automatically yet.** There is no code path that calls `Posession.Posess(...)` on startup — the only trigger right now is `ActorHost`'s `[ContextMenu("Possess This")]`, run manually from the Inspector during Play. Don't assume a fresh scene has a controllable character without doing this first.
-2. Modules never read `ModuleInput` directly — only `Actor` subscribes to it, and only while possessed. A module declares what it reacts to via `ReactsTo`; it never checks "am I the possessed one" itself, and is simply never called if it isn't.
-3. A module finds its owner via `GetComponentInParent<ActorHost>()` in `Awake`, never via a hand-assigned Inspector reference — this is what lets the same module component be dropped under any possessable character without per-prefab wiring.
-4. **Known inconsistency:** `ActorHost.cs` physically lives under `Core/Player/` (and so compiles into `Core.asmdef`) but is declared `namespace Features.Character` — matching neither its folder nor the `Features.Player.Characters` asmdef (which currently has nothing in it). `ActorHost` was deliberately placed in Core despite being a `MonoBehaviour` — the doc comment in the file itself says so — so the namespace should read `Core.Player` to match where it actually compiles. Not yet fixed.
-5. `Features/Modules` (where `WalkModule` lives) now has `Features.Modules.asmdef` referencing only `Core`, so the dependency-direction test (architecture-foundations.md §6.2) **is** enforced — it cannot reference other Features. (This corrects an earlier state where it compiled into the default `Assembly-CSharp`.)
-6. `Posession` exposes `Available` but not who's currently possessed — fine while nothing outside `Posession`/`Actor` needs to query it, but the first feature that does (camera switching, a UI indicator) will need a public `Current` accessor added.
-7. `Posession.OnPossessionChanged` is declared but never raised inside `Posess` — dead until something needs to react to a switch.
-8. `TagSet` has no `Add`/`Remove`/`HasAny` implemented — any module's blocking-tag check is a TODO, not yet functional.
-
-## 5. Verification
-
-```
-grep -rn "ModuleInput\." Assets/Scripts --include=*.cs
-```
-
-Expected result: `RaiseMove`/`RaiseInteract` invoked only in `InputReader.cs`; `OnIntent` subscribed to only in `Actor.cs`.
-
-## 6. Usage example
-
-```csharp
-// a module, self-registering, declaring what it reacts to
-public class WalkModule : MonoBehaviour, IModule
-{
-    ActorHost host;
-    Rigidbody rb;
-    [SerializeField] int speed;
-
-    void Awake()
-    {
-        host = GetComponentInParent<ActorHost>();
-        rb = host?.GetComponent<Rigidbody>();
-    }
-
-    void OnEnable()  => host.Actor.RegisterModule(this);
-    void OnDisable() => host.Actor.RemoveModule(this);
-
-    static readonly Intent[] reactsTo = { Intent.Move };
-    public IEnumerable<Intent> ReactsTo => reactsTo;
-
-    public void Handle(Actor owner, Command cmd)
-    {
-        var direction = cmd.ExtraInfo;
-        rb.linearVelocity = new Vector3(direction.x, 0, direction.y) * speed;
-    }
-}
-```
-
-## 7. Assembly dependencies
-
-| Assembly | References |
-|---|---|
-| `Core` (includes `Core/Player/*`) | none |
-| `Features.Input` | `Core`, `Unity.InputSystem` |
-| `Features.Player.Characters` | `Core` — currently empty; `ActorHost.cs` compiles into `Core` instead (Rule 4) |
-| `Features.Modules` | `Core` (Rule 5) |
+Per-quest, on every `FactChanged` (key ignored; re-scan, matching the
+`null`="everything" convention): read `quest.{id}.stage`; if `0`, promote to `1`
+when `startConditions` all met; if `>Length`, write the completed flag (guarded
+against re-fire); else **reconcile** — if the built stage ≠ the counter, tear
+down old `setupInstances` and instantiate the new stage's `setupPrefabs`; then if
+all of the current stage's objectives `IsMet()`, advance the counter. The
+counter, not derived state, is authoritative — so save/load is free and quest
+chains are just conditions on other quests' stage facts.
 
 ---
 
-# Input Routing Architecture — Execution & Display Projections
+## 4. Cutscene system
 
-**Status:** Implemented for the **Player** context (one action map). `Move` and
-`Interact` are wired end-to-end; the glyph **display** projection is implemented
-for `label` (the `sprite` half of `Glyph` is unwired). No menu / second context
-exists yet — the design is extension-ready, not extended.
-**Scope:** how raw device input becomes a typed `Intent`, and how that *single*
-source fans out to (A) the possessed player and (B) the UI prompt's button glyph.
+**Status:** Live, data-driven. Each cutscene declares its own trigger event;
+`CutsceneDirector` subscribes to all of them and plays on raise. Adding a
+cutscene needs no code change. **Play-once gating is back** (it writes/reads a
+fact now) and the director **does** touch `WorldState` — reversing the older
+"director no longer touches the save system" note.
 
-## 1. Overview
+### Components
 
-`InputReader` is the one adapter that turns the `Player` action map into a single
-`Intent → InputAction` map, then exposes that map as **two independent
-projections** of the same data:
+| Component | Location | Responsibility |
+|---|---|---|
+| `CutsceneDefinitionSO` | `Features/Cutscenes/CutsceneDefinitionSO.cs` | `id`, `cutscenePrefab` (carries a `PlayableDirector`), `eventTrigger` (`VoidEventSO` — what fires it), `eventRaiseOnFinish` (`VoidEventSO` raised on stop — chains forward), `replayable`, `isTriggerForQuest`. Derived `WritesFinishedFact => !replayable || isTriggerForQuest`. |
+| `CutsceneCatalogSO` | `Features/Cutscenes/CutsceneCatalogSO.cs` | `List<CutsceneDefinitionSO> cutscenes`, serialized onto the director. |
+| `CutsceneDirector` | `Features/Cutscenes/CutsceneDirector.cs` | `MonoBehaviour`. `OnEnable`: for each def, skip if no trigger or if play-once-gated (`!replayable && GetFlag(CutsceneFinished(id))`), else bind a handler to `eventTrigger.Raised` (stored for `OnDisable`). `Play`: `InputRouter.Enter(Cutscene)` on first active cutscene; instantiate prefab; wire skip via `CutsceneInput.SkipCutscene`; on `playable.stopped` → write finished-fact if opted in, raise `eventRaiseOnFinish`, destroy instance, `InputRouter.Exit(Cutscene)` when the last one ends. |
+| `CutsceneTextScrambleReveal` | `Features/Cutscenes/CutsceneTextScrambleReveal.cs` | `ITimeControl` on a Timeline clip: scrambles then settles TMP text, char-by-char, driven by clip time. |
 
-- **Execution (push)** — intents are broadcast on `ModuleInput`; the possessed
-  `Actor` receives them and dispatches to its modules. (Continues in *Player
-  Possession & Module Input*.)
-- **Display (pull)** — an `InputGlyphProvider` wraps the *same* map and is
-  registered into Core's `GlyphInput`; the UI asks it, by `Intent`, for a `Glyph`
-  (letter/sprite) to draw.
+### Rules
 
-Both projections read one map. Neither Core nor the UI ever sees an `InputAction`
-— only `Intent` goes in and `Glyph` comes out. The Input System package is
-quarantined inside `Features.Input`.
+1. **Adding a cutscene is code-free** — make the def, assign prefab + `eventTrigger`,
+   add to catalog, ensure something raises the trigger.
+2. **Playback is prefab-instantiation** — each cutscene is a self-contained prefab
+   with its own `PlayableDirector` and Timeline bindings. Unbound `ActivationTrack`s
+   fail silently.
+3. **Replay is prevented by the finished-fact** (`WritesFinishedFact`), re-checked
+   at subscription time in `OnEnable`. A `replayable` cutscene that also
+   `isTriggerForQuest` still writes its fact (so a quest can gate on it) but is not
+   play-once-blocked.
+4. **Input context is the director's responsibility** — it enters/exits the
+   `Cutscene` context around playback (§8); skip is a `Cinematic`-map action.
 
-## 2. Components
+---
 
-| Component | Location | Responsibility | Used by |
-|---|---|---|---|
-| `InputReader` | `Features/Input/InputReader.cs` | `MonoBehaviour`. The single input adapter. Builds the `Intent → InputAction` map from the `Player` map; pumps `Move` each frame and `Interact` on `performed` into `ModuleInput` (execution); constructs an `InputGlyphProvider` over the same map and registers it into `GlyphInput` (display); owns the map's enable/disable | — |
-| `ModuleInput` | `Core/Input/ModuleInput.cs` | Static. **Execution** transport: `RaiseMove`/`RaiseInteract` raise `OnIntent(Intent, Vector2)` | `InputReader` (raises), `Actor` (subscribes only while possessed) |
-| `IInputGlyphProvider` | `Core/Input/IInputGlyphProvider.cs` | Core seam for **display**: `Glyph GetGlyph(Intent)` + `event DeviceChanged` | `GlyphInput`, UI |
-| `GlyphInput` | `Core/Input/GlyphInput.cs` | Static Core registry — the query-shaped sibling of `ModuleInput`. `Register(provider)` (by `InputReader`), `Glyphs` getter (by UI); holds one `IInputGlyphProvider` | `InputReader` (registers), UI (reads) |
-| `InputGlyphProvider` | `Features/Input/InputGlyphProvider.cs` | Plain C# (no `MonoBehaviour`). Resolves an `Intent` to a `Glyph` via the map + `GetBindingDisplayString` for the active control scheme; caches per intent; tracks the active device via the static `InputSystem.onActionChange` and raises `DeviceChanged` (clearing the cache) on a scheme switch. `IDisposable`, disposed by `InputReader` | `GlyphInput` |
-| `Glyph` | `Core/Input/Glyph.cs` | `struct` — `label` (string) + `sprite` (`Sprite`). The only input-derived type that crosses into Core/UI | UI |
-| `UIInteractPromptDisplayRequestSO` | `Core/Events/UIInteractPromptDisplayRequestSO.cs` | SO event channel carrying `(localized label, Intent, Transform)`. An interactable raises it on focus/unfocus; the prompt UI listens, then resolves the glyph for that `Intent` from `GlyphInput` | `ChargingStation` (raises), prompt UI (listens) |
+## 5. Session intent & new-game flow
 
-## 3. The two routes
+**Status:** Live for New Game (drives the intro end to end). `Continue`/`None`
+are stubs. `GameFlow.OnNewGameRequested`/`OnLoadGameRequested` fire but have no
+subscribers (dead); `GameFlow.LoadGame` has no callers.
 
-**Route A — input → player (execution):**
+Entry intent is carried as **data, not a live object**. `GameSession` (SO) holds
+a transient `EntryMode`; the Title button writes it, the Gameplay scene reads it
+once and acts — so the "new game started" broadcast is raised only *after*
+gameplay listeners exist.
 
-```
-device → InputReader (Update / performed)
-       → ModuleInput.OnIntent (broadcast)
-       → possessed Actor.Send → Command → modules filtered by ReactsTo
-       → WalkModule (Move → Rigidbody) / InteractionModule (Interact → Focus.Current.Interact())
-```
+| Component | Location | Responsibility |
+|---|---|---|
+| `GameSession` | `Core/SceneControls/GameSession.cs` | SO. `EntryMode {None,NewGame,Continue}`; `Request(mode)` (menu), `Consume()` (read-and-clear, gameplay), `OnEnable` resets to `None`. Menu `Cleanbot/App/GameSession`. |
+| `GameplayBootstrap` | `App/GameplayBootstrap.cs` | `MonoBehaviour` in Gameplay. `Start`: `switch(session.Consume())` → NewGame: `InitializeNewGame()` (stub) + `newGameStarted.RaiseAction()`; Continue: `LoadSavedGame()` (stub); None: nothing. |
+| `StartNewGameButton` | `Features/Title/StartNewGameButton.cs` | `Request(NewGame)` then `GameFlow.StartNewGame()`. |
+| `GameFlow` | `Core/SceneControls/GameFlow.cs` | Static. `StartNewGame`: `WorldState.NewSave()` + (dead) `OnNewGameRequested` + `ChangeSceneTo(Gameplay)`. |
+| `TestButton` | `Features/Title/TestButton.cs` | Dev harness: `StartNewGame` (no session intent → intro won't play), `OnGoToGameplayButton`, `OnSwitchLocale`, `OnSaveTestButton`→`WorldState.Save()`. |
 
-**Route B — focus → UI prompt (display):**
+**Timing invariant:** the raise happens in `GameplayBootstrap.Start`; listeners
+(`CutsceneDirector`) subscribe in `OnEnable`. Unity runs all `OnEnable` before any
+`Start`, so nothing is missed — keep the raise in `Start`. Two wires must point at
+the *same* asset: the `GameSession` on button + bootstrap, and the `VoidEventSO`
+on bootstrap's `newGameStarted` + the intro def's `eventTrigger`.
 
-```
-InteractionSensor focuses an interactable
-       → InteractionFocus.Set → IInteractable.OnFocus
-       → UIInteractPromptDisplayRequestSO.RaiseShow(label, Intent, transform)
-UI then pulls the glyph for that Intent:
-       → GlyphInput.Glyphs.GetGlyph(Intent) → Glyph { label, sprite }
-       → refresh on DeviceChanged
-```
+---
 
-The interaction is split the same orthogonal way: the **sensor** decides *which*
-interactable is focused ("what"); the **`Interact` intent** (Route A) fires
-`InteractionModule`, which acts on whatever is focused ("when"). The world can
-also originate commands back into the actor — `ChargingStation.Interact` calls
-`Actor.Dispatch(Intent.Charge, dockAnchor)`, the world-side sibling of the
-input-side `Actor.Send`.
+## 6. Scene flow
 
-## 4. Rules
+**Status:** Live. Title↔Gameplay, additive load/unload, behind one vocabulary;
+no feature touches `SceneManager` directly.
 
-1. The `Intent → InputAction` map lives **only** in `InputReader`. Nothing else
-   maps keys to intents; both projections read this one map.
-2. **Core never references `UnityEngine.InputSystem`.** The middleware stays in
-   `Features.Input`; `InputAction`/`InputControlScheme` must never appear in a
-   Core type's signature — only `Intent` goes in, only `Glyph` comes out.
-3. The UI obtains a glyph **only** from Core (`GlyphInput.Glyphs`), never from
-   `Features.Input`. `InputReader` registers the provider; consumers pull — the
-   same Core-mediated handoff as `ModuleInput`, so neither feature references the
-   other.
-4. `GlyphInput.Glyphs` is `null` until `InputReader.Awake` registers — consumers
-   must null-guard (`GlyphInput.Glyphs?.GetGlyph(...)`) and query at **show** time,
-   not in `OnEnable`.
-5. The display projection is read-only over the binding asset — rebinding a key in
-   the `.inputactions` asset updates both the player's controls and every prompt
-   glyph, with no code change.
+| Component | Location | Responsibility |
+|---|---|---|
+| `SceneStateMachine` | `Core/SceneControls/SceneStateMachine.cs` | Static vocabulary. `GameScene {Title,Gameplay}`, `CurrentGameScene`, `ChangeSceneTo(next)`, `event OnGameSceneChanged(from,to)` (fires the instant a transition is *requested*). |
+| `SceneLoader` | `Core/SceneControls/SceneLoader.cs` | Static interpreter. `Initialize(map)` (by Bootstrap), `LoadScene(from,to)` loads `to` additively + unloads `from` on completion, then fires `OnSceneLoaded(to)` (after the new scene's `OnEnable`s). |
+| `Bootstrap` | `App/Bootstrap.cs` | Composition root. `[RuntimeInitializeOnLoadMethod(BeforeSceneLoad)]`: sets the `GameScene→name` map, wires `SceneStateMachine.OnGameSceneChanged += SceneLoader.LoadScene`. |
 
-## 5. Verification
+**Rules:** features request transitions only via `ChangeSceneTo`; only
+`SceneLoader` calls `SceneManager`; anything needing a just-loaded scene's objects
+subscribes to `SceneLoader.OnSceneLoaded`, not `OnGameSceneChanged` (the latter
+fires before the async load starts). Verify: `SceneManager.` appears only in
+`SceneLoader.cs` (and the `Prototypes/SceneSwitcher.cs` scratch file — Appendix A).
 
-```
-grep -rn "InputSystem" Assets/Scripts/Core --include=*.cs
-```
+---
 
-Expected: **no matches** — the Input System never reaches Core.
+## 7. Possession & module input
 
-```
-grep -rn "GlyphInput\." Assets/Scripts --include=*.cs
-```
+**Status:** Live for one actor. `ActorHost.Awake` now auto-possesses (a `TestPossess`
+call marked TODO-remove), so a fresh Gameplay scene *does* have a controlled actor —
+reversing the old "nothing is possessed automatically" note. No second possessable
+character yet; `Posession.OnPosessionChanged` is declared but never raised.
 
-Expected: `Register` only in `InputReader.cs`; `Glyphs` read only in UI consumers.
+`Actor` (plain C#, deliberately not a `MonoBehaviour`) is the thing possessed: it
+owns a `TagSet`, an `InteractionFocus`, and a list of `IModule`s. Only the
+possessed actor is subscribed to input; a non-possessed actor's modules are never
+called.
 
-## 6. How to work with these files
+| Component | Location | Responsibility |
+|---|---|---|
+| `IPosessable` | `Core/Player/IPosessable.cs` | `OnPosessed`/`OnUnposessed`. |
+| `Posession` | `Core/Player/Posession.cs` | Static. `Register`/`Unregister` (by `ActorHost`), `Posess(next)` unpossesses current then possesses next, `Available`. |
+| `Actor` | `Core/Player/Actor.cs` | Plain C#, `IPosessable`. `Tags`, `Focus`, module list. `OnPosessed` subscribes `Send` to `ModuleInput.OnIntent`. `Send`(input) / `Dispatch`(world, carries a `Transform`) build a `Command` and forward to modules whose `ReactsTo` contains the intent. `GetModule<T>()`. |
+| `ActorHost` | `Core/Player/ActorHost.cs` | `MonoBehaviour`, `namespace Core.Player` (the old namespace/asmdef inconsistency is **resolved** — it compiles into `Core` and is named to match). Registers its `Actor` on enable; `[ContextMenu]`+`Awake` `TestPossess`. |
+| `IModule` | `Core/Player/IModule.cs` | `ReactsTo` (declared intents), `Tag BlockedBy => Tag.None`, `Handle(owner, cmd)`. |
+| `Command` | `Core/Player/Command.cs` | `readonly struct`: `Intent WhatToDo`, `Vector2 ExtraInfo`, `Transform Position` (two ctors — input payload vs world payload). |
+| `Intent` | `Core/Player/Intent.cs` | `Move`, `Interact`, `Charge`, `StopCharge`. |
+| `TagSet` / `Tag` | `Core/Player/TagSet.cs` | **Now fully implemented** (was empty). `[Flags] Tag {None,Interacting,Charging,Busy}`; `TagSet` is a ref-counted set with `Add`/`Remove`/`HasAny`/`HasAll` + `Added`/`Removed` events. Modules gate on it (`WalkModule`/`InteractionModule` `BlockedBy Interacting|Charging`). |
+| `WalkModule` | `Features/Modules/WalkModule.cs` | `MonoBehaviour,IModule`. Finds `ActorHost` via `GetComponentInParent` in `Awake`; self-registers on enable. Reacts to `Move`: rigidbody rotate (`ExtraInfo.x`) + forward/reverse drive (`ExtraInfo.y`) in `FixedUpdate`; blocked while `Interacting`/`Charging`. |
 
-- **Add an input verb** (e.g. `Jump`): add it to `Intent`, add the binding in the
-  `.inputactions` asset, add one `map[...] = FindAction(...)` line + a `Raise…`
-  call in `InputReader`. The glyph side needs **no** change — it reads the map.
-- **Show a prompt on a new interactable:** implement `IInteractable`, and in
-  `OnFocus` raise the prompt SO with the relevant `Intent`. The glyph resolves
-  automatically from `GlyphInput`.
-- **Letters → sprites:** fill `Glyph.sprite` in `InputGlyphProvider.Resolve` using
-  the `GetBindingDisplayString(i, out deviceLayout, out controlPath)` overload to
-  key a sprite table. The UI, which only reads `Glyph`, is unchanged.
-- **Add a menu context (future):** add a *parallel triple* — a reader on the `UI`
-  action map + its own transport (e.g. `MenuInput`) — and switch contexts by
-  enabling/disabling action maps. Do **not** branch `ModuleInput`. The glyph
-  provider can serve any registered context (or add a parallel provider).
+**Rules:** modules never read `ModuleInput` directly — only the possessed `Actor`
+does. A module finds its owner via `GetComponentInParent<ActorHost>()`, never an
+Inspector reference (drop-in under any character). Verify: `ModuleInput.RaiseX`
+invoked only in `InputReader.cs`; `OnIntent` subscribed in `Actor.cs` and
+`DwellTracker.cs`.
 
-## 7. Assembly dependencies
+---
 
-| Assembly | References |
-|---|---|
-| `Core` (`Core/Input`, `Core/Events`) | none |
-| `Features.Input` | `Core`, `Unity.InputSystem` |
-| `Features.UI` (prompt consumers) | `Core` |
+## 8. Input routing — contexts, execution & display projections
+
+**Status:** Live for Player + Cutscene contexts; Menu map exists (always enabled
+for UI clicks). One adapter, `InputReader`, turns the action asset into a single
+`Intent→InputAction` map and fans it out three ways.
+
+**Three concerns, kept separate:**
+
+- **Context (which map is active)** — `InputRouter` is a context *stack*
+  (`Gameplay`/`Cutscene`/`Menu`); `Enter`/`Exit` push/pop and raise
+  `ContextChangedTo`. `InputReader.Apply` enables the matching action map. The
+  cutscene director drives this (§4).
+- **Execution (push)** — `ModuleInput.RaiseMove/RaiseInteract/RaiseStopCharging`
+  broadcast `OnIntent(Intent,Vector2)`; the possessed `Actor` receives it (§7).
+- **Display (pull)** — `InputGlyphProvider` wraps the same map and registers into
+  `GlyphInput`; UI asks by `Intent` for a `Glyph` (label/sprite) to draw.
+
+| Component | Location | Responsibility |
+|---|---|---|
+| `InputReader` | `Features/Input/InputReader.cs` | The one adapter. Builds the `Intent→InputAction` map from the `Player` map; pumps `Move` each frame, `Interact` on `performed`, `Skip`→`CutsceneInput.RaiseSkip`; constructs+registers the glyph provider; enables/disables maps per context (`Player`/`Cinematic`/`UI`). |
+| `ModuleInput` | `Core/Input/ModuleInput.cs` | Static execution transport (`OnIntent`). |
+| `InputContext` / `InputRouter` | `Core/Input/InputContext.cs`, `InputRouter.cs` | Enum + static context stack, `ContextChangedTo`, `ActiveContext`. |
+| `CutsceneInput` | `Core/Input/CutsceneInput.cs` | Static `SkipCutscene` event (`RaiseSkip`). |
+| `GlyphInput` | `Core/Input/GlyphInput.cs` | Static registry holding one `IInputGlyphProvider`. |
+| `IInputGlyphProvider` / `Glyph` | `Core/Input/*` | Display seam: `GetGlyph(Intent)` + `DeviceChanged`; `Glyph {label, sprite}` (only `sprite` unwired). |
+| `InputGlyphProvider` | `Features/Input/InputGlyphProvider.cs` | Plain C#. Resolves `Intent`→`Glyph` via `GetBindingDisplayString` for the active control scheme; caches; tracks device via `InputSystem.onActionChange`, clears cache + raises `DeviceChanged` on a scheme switch. `IDisposable`. |
+
+**Rules:** the `Intent→InputAction` map lives only in `InputReader`. **Core never
+references `UnityEngine.InputSystem`** — verify `InputSystem` has no matches under
+`Assets/Scripts/Core`. UI pulls glyphs only from `GlyphInput` (null until
+`InputReader.Awake` registers — null-guard and query at show time). Add a verb =
+`Intent` + binding + one map line + `Raise…`; the glyph side needs no change.
+
+---
+
+## 9. Interaction & docking
+
+**Status:** Live. Two interactables shipped (`SlidingDoors`, `ChargingStation`).
+Interaction is split orthogonally: a **sensor** decides *what* is focused; the
+**`Interact` intent** decides *when* to act on it.
+
+| Component | Location | Responsibility |
+|---|---|---|
+| `IInteractable` | `Core/Interaction/IInteractable.cs` | `CanInteract(actor)`, `OnFocus(hitPoint)`, `OnUnfocus()`, `Interact(actor)`. |
+| `InteractionFocus` | `Core/Player/InteractionFocus.cs` | Held by `Actor`. `Current`, `Set`/`Clear` with focus/unfocus callbacks. |
+| `InteractionModule` | `Features/Modules/InteractionModule.cs` | `MonoBehaviour,IModule` = the sensor **and** the executor. `Update` does a `SphereCast` from the camera, sets `Actor.Focus`; `Handle(Interact)` calls `Focus.Current.Interact(owner)`. Blocked while `Interacting`/`Charging`. |
+| `IDock` / `IChargeable` | `Core/Interaction/IDock.cs`, `Core/Player/IChargeable.cs` | `Dock/UnDock/Docked` ; `StartDocking(dock)`. |
+| `ChargingModule` | `Features/Modules/ChargingModule.cs` | `IModule,IChargeable`. `StartDocking` docks the rigidbody + subscribes `Docked`→swap `Interacting`→`Charging` tag; pressing interact while charging → `StopCharge` (undock, clear tag). |
+| `ChargingStation` | `Features/Interactables/ChargingStation.cs` | `IInteractable,IDock`. `Interact` → `actor.GetModule<IChargeable>().StartDocking(this)` + adds `Interacting`; `Dock` shows a stop-prompt, raises a static dock camera's depth, coroutine-lerps the body to `dockAnchor`, then fires `Docked`. |
+| `SlidingDoors` | `Features/Interactables/SlidingDoors.cs` | `IInteractable`. Toggles an `Animator` bool; shows/hides a prompt (§10); `OnMotionFinished` (animation event) clears `isBusy`. |
+
+**Notes:** the world commands the actor via the same module dispatch — this is
+the world-side sibling of input (`Actor.Dispatch` exists for it, though today
+`ChargingStation.Interact` calls `StartDocking` directly). Tag mutual-exclusion
+(`Interacting`/`Charging`) is what stops walking while docked.
+`ModuleInput.RaiseStopCharging` currently has no module reacting to
+`Intent.StopCharge` (ChargingModule reacts to `Interact`) — effectively dead;
+clean up or wire.
+
+---
+
+## 10. UI prompt & mount channels
+
+**Status:** Live. All UI is driven by SO event channels — no feature references
+UI; UI subscribes and queries. (Corrects the old doc's `UIInteractPromptDisplayRequestSO`
+name and 3-arg payload — the real channels are below.)
+
+| Component | Location | Responsibility |
+|---|---|---|
+| `UIPromptDisplayRequestSO` | `Core/Events/UIPromptDisplayRequestSO.cs` | `Show(string text, Intent)` / `Hide()`. Raised by interactables on focus. |
+| `UIPromptPositionRequestSO` | `Core/Events/UIPromptPositionRequestSO.cs` | `SetPosition(Vector3)`. |
+| `UIElementDisplayRequestSO` | `Core/Events/UIElementDisplayRequestSO.cs` | Generic widget channel `Show/Hide(GameObject prefab)` ("Unreal WidgetChannel"). |
+| `UIPrompt` | `Features/UI/UIPrompt.cs` | Listens to a prompt channel; sets label; resolves the glyph for the `Intent` from `GlyphInput` (§8) and refreshes on `DeviceChanged`; fades a `CanvasGroup`. |
+| `UIPromptPosition` | `Features/UI/UIPromptPosition.cs` | Places the prompt at `WorldToScreenPoint(hitPoint + offset)` each `LateUpdate`. |
+| `UIMountPoint` | `Features/UI/UIMountPoint.cs` | Instantiates/destroys a prefab under a container in response to a `UIElementDisplayRequestSO`. |
+
+---
+
+## Appendix A — Prototype / scratch code (NOT architecture)
+
+Two self-contained spike folders in their own namespaces, referencing neither
+`Core` nor `Features` (they fall into `Assembly-CSharp`). They are the
+pre-architecture gameplay experiments — ignore them when reasoning about systems,
+and don't wire production code to them.
+
+- **`Prototypes/`** (namespace `Prototypes`, 9 files) — the original cleaning
+  loop spike: `PrototypeRobotMove`/`PrototypeRobotClean`/`PrototypeDirtPatch`/
+  `PrototypeBeads`/`PrototypeSliderDirtCollected`/`PrototypeCamera`/
+  `PrototypeFlashLight`/`PrototypeInteractPrompt`, plus `SceneSwitcher`
+  (a raw `SceneManager.LoadScene` — the one legitimate non-`SceneLoader`
+  `SceneManager` call, and it's scratch).
+- **`FpvSlimPrototype/`** (namespace `FpvSlimPrototype`, 7 files) — the
+  first-person "slim mode squeeze" spike: `FpvSlimProtBotMove` (space toggles a
+  y-scale squash), `FpvSlimProtClean`/`FpvSlimProtDirt`/`FpvSlimProtBeads`
+  (forked copies of the Prototype cleaning loop), `FpvSlimProtCamera`/
+  `FpvSlimCameraSwitch`/`FpvSlimProtEdgeDetector`.
+- **`MyScript.cs`** (root, no namespace) — empty class stub. Delete.
+
+These are the concrete referents behind `architecture-foundations.md`'s slim/
+suction/clean module discussion — kept as design memory, superseded in code by
+the Core/Feature stack above.
+
+## Appendix B — Known stale / cleanup TODOs (surfaced by this sweep)
+
+- `QuestRuntime.OnFactChanged` — brain not implemented (§3).
+- `ActorHost.Awake → TestPossess()` and `[ContextMenu]` — dev-only auto-possess,
+  marked for removal.
+- `GameFlow.OnNewGameRequested`/`OnLoadGameRequested` + `LoadGame()` — dead
+  (no subscribers/callers). `Posession.OnPosessionChanged` — declared, never raised.
+- `ModuleInput.RaiseStopCharging` / `Intent.StopCharge` — raised but unhandled (§9).
+- `MyScript.cs` — empty stub, delete.
+- `Core` asmdef now references `Unity.Localization` — confirm something in Core
+  actually needs it, or drop the reference to keep Core lean.

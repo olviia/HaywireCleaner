@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 181e7cea32e14e1f9690537731d7078b, type: 3}
-  m_Name: QuestTutorial
+  m_Name: mq-01-awakening
   m_EditorClassIdentifier: Features.Quests::Features.Quests.QuestDefinitionSO
   id: mq-01-awakening
   title:
@@ -59,9 +59,10 @@ MonoBehaviour:
         factKey: tutorial.rotated
         test: 0
         value: 0
-    setupPrefabs: []
+    setupPrefabs:
+    - {fileID: 7791285417302073142, guid: 32c7caea5a860dd4ba87617d9c52d489, type: 3}
   startConditions:
-  - factKey: tutorial.moved
+  - factKey: cutscene.SystemInitialisation.finished
     test: 0
     value: 0
   references:
