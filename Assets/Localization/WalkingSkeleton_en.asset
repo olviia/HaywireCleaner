@@ -16,7 +16,8 @@ MonoBehaviour:
     m_Code: en
   m_SharedData: {fileID: 11400000, guid: 42c65d3e360c7b440a38df68aea27393, type: 2}
   m_Metadata:
-    m_Items: []
+    m_Items:
+    - rid: 2391545805538590788
   m_TableData:
   - m_Id: 21615095808
     m_Localized: Feral Cleanbot
@@ -82,6 +83,29 @@ MonoBehaviour:
     m_Localized: "h\u0336 r\u0337\xEB\u0338q\u0334\u1E85\u0336 g\u0337..."
     m_Metadata:
       m_Items: []
+  - m_Id: 9417894318059520
+    m_Localized: Wake Up
+    m_Metadata:
+      m_Items: []
+  - m_Id: 9418232597065728
+    m_Localized: Feel the movement
+    m_Metadata:
+      m_Items: []
+  - m_Id: 9423157578182656
+    m_Localized: Try to rotate
+    m_Metadata:
+      m_Items:
+      - rid: 2391545805538590788
+  - m_Id: 9423853954281472
+    m_Localized: Try to move
+    m_Metadata:
+      m_Items: []
   references:
     version: 2
-    RefIds: []
+    RefIds:
+    - rid: 2391545805538590788
+      type: {class: SmartFormatTag, ns: UnityEngine.Localization.Metadata, asm: Unity.Localization}
+      data:
+        m_Entries: 
+        m_SharedEntries:
+        - id: 9423157578182656

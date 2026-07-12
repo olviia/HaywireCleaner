@@ -28,10 +28,12 @@ namespace Features.Cutscenes
         {
             foreach (var cutscene in catalog.cutscenes)
             {
-                if(cutscene.trigger == null ) continue;
+                if(cutscene.eventTrigger == null ) continue;
+                if(!cutscene.replayable && WorldState.GetFlag(FactKeys.CutsceneFinished(cutscene.id))) continue;
+                
                 Action action = () => Play(cutscene);
-                cutscene.trigger.Raised += action;
-                bindings.Add((cutscene.trigger, action));
+                cutscene.eventTrigger.Raised += action;
+                bindings.Add((cutscene.eventTrigger, action));
             }
         }
 
@@ -50,11 +52,20 @@ namespace Features.Cutscenes
             {
                 InputRouter.Enter(InputContext.Cutscene);
             }
-            
             var instance = Instantiate(def.cutscenePrefab);
             var playable = instance.GetComponent<PlayableDirector>();
+
+            Action skipAction = () => playable.Stop();
+            CutsceneInput.SkipCutscene += skipAction;
+            
             playable.stopped += _ =>
             {
+                CutsceneInput.SkipCutscene -= skipAction;
+                
+                if(def.WritesFinishedFact)
+                    WorldState.SetFlag(FactKeys.CutsceneFinished(def.id), true);
+                if (def.eventRaiseOnFinish != null) def.eventRaiseOnFinish.RaiseAction();
+                
                 Destroy(instance);
                 if(--activeCutscenes == 0) 
                     InputRouter.Exit(InputContext.Cutscene);

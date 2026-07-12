@@ -53,7 +53,7 @@ namespace Core.SaveSystem
             if (!SaveExists) return;
             string json = File.ReadAllText(SavePath);
             currentSaveData = JsonConvert.DeserializeObject<SaveData>(json);
-            FactChanged.Invoke(null); //meaning that everything changed
+            FactChanged?.Invoke(null); //meaning that everything changed
         }
         
         public static void NewSave()
@@ -69,7 +69,7 @@ namespace Core.SaveSystem
                 ownedModuleId = new List<string>(),
                 skillId = new List<string>()
             };
-            FactChanged.Invoke(null); //meaning that everything changed
+            FactChanged?.Invoke(null); //meaning that everything changed
         }
         
 

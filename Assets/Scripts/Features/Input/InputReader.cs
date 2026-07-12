@@ -27,6 +27,8 @@ namespace Features.Input
         private InputAction move;
         private InputAction interact;
 
+        //for cutscenes
+        private InputAction skip;
         private void Awake()
         {
             player = actions.FindActionMap("Player");
@@ -36,10 +38,14 @@ namespace Features.Input
             move = actions.FindAction("Move");
             interact = actions.FindAction("Interact");
             
+            skip = actions.FindAction("Skip");
+            
             map[Intent.Move] = move;
             map[Intent.Interact] = interact;
 
             interact.performed += OnInteractPerformed;
+
+            skip.performed += OnSkipPerformed;
             
             glyphs = new InputGlyphProvider(map, actions);
             GlyphInput.Register(glyphs); //give the glyphs to the core
@@ -48,6 +54,7 @@ namespace Features.Input
         private void OnEnable()
         {
             InputRouter.ContextChangedTo += Apply;
+            menu.Enable(); //always turned on for ui clicking
             Apply(InputRouter.ActiveContext);
         }
 
@@ -56,6 +63,7 @@ namespace Features.Input
         private void OnDestroy()
         {
             interact.performed -= OnInteractPerformed;
+            skip.performed -= OnSkipPerformed;
             glyphs?.Dispose();
         }
 
@@ -72,11 +80,12 @@ namespace Features.Input
             ModuleInput.RaiseStopCharging();
         }
 
+        void OnSkipPerformed(InputAction.CallbackContext _) => CutsceneInput.RaiseSkip();
+
         private void Apply(InputContext context)
         {
             player.Disable();
             cinematic.Disable();
-            menu.Disable();
 
             var activeMap = context switch
             {

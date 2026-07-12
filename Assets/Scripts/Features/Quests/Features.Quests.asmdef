@@ -1,0 +1,4 @@
+{
+  "name": "Features.Quests",
+  "references": ["Core", "Unity.Localization"]
+}

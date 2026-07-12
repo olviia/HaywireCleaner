@@ -79,6 +79,22 @@ MonoBehaviour:
     m_Key: Cutscene_SystemInitialisation.prsdljf
     m_Metadata:
       m_Items: []
+  - m_Id: 9417894318059520
+    m_Key: quest.mq-01-awakening.title
+    m_Metadata:
+      m_Items: []
+  - m_Id: 9418232597065728
+    m_Key: quest.mq-01-awakening.stage01
+    m_Metadata:
+      m_Items: []
+  - m_Id: 9423157578182656
+    m_Key: quest.mq-01-awakening.stage01.objective02
+    m_Metadata:
+      m_Items: []
+  - m_Id: 9423853954281472
+    m_Key: quest.mq-01-awakening.stage01.objective01
+    m_Metadata:
+      m_Items: []
   m_Metadata:
     m_Items: []
   m_KeyGenerator:

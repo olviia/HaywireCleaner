@@ -14,5 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Cutscenes::Features.Cutscenes.CutsceneDefinitionSO
   id: SystemInitialisation
   cutscenePrefab: {fileID: 4404287804173676646, guid: f24d23038c540dc4cb71892eee316de7, type: 3}
-  replayable: 0
-  trigger: {fileID: 11400000, guid: c419b7889e009f341934638043122d18, type: 2}
+  eventTrigger: {fileID: 11400000, guid: c419b7889e009f341934638043122d18, type: 2}
+  eventRaiseOnFinish: {fileID: 0}
+  replayable: 1
+  isTriggerForQuest: 1

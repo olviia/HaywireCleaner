@@ -9,11 +9,15 @@ namespace Features.Cutscenes
     {
         public string id;
         public GameObject cutscenePrefab;
-        public VoidEventSO trigger;
-        //todo: implement not replayable cutscenes with check for their key in 
-        //world facts dictionary
+        public VoidEventSO eventTrigger;
+
+        public VoidEventSO eventRaiseOnFinish;
+        
         public bool replayable; 
-        public bool isTriggerForSomething; //if yes, writes the fact that this cutscene
+        public bool isTriggerForQuest; //if yes, writes the fact that this cutscene
                                             //was played into facts
+                                            
+        //derived definition
+        public bool WritesFinishedFact => !replayable || isTriggerForQuest;
     }
 }

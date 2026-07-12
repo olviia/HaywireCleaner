@@ -55,7 +55,7 @@
                     "name": "Jump",
                     "type": "Button",
                     "id": "f1ba0d36-48eb-4cd5-b651-1c94a6531f70",
-                    "expectedControlType": "Button",
+                    "expectedControlType": "",
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
@@ -997,7 +997,7 @@
             "id": "d8f8acac-f726-4bcf-8933-0e419cf3359e",
             "actions": [
                 {
-                    "name": "New action",
+                    "name": "Skip",
                     "type": "Button",
                     "id": "1f7447c2-c8c3-4d5c-bc0f-8a16c4245535",
                     "expectedControlType": "",
@@ -1010,11 +1010,22 @@
                 {
                     "name": "",
                     "id": "f23f5da8-89c9-44f9-b824-5ea0f0ab85ad",
-                    "path": "",
+                    "path": "<Keyboard>/space",
                     "interactions": "",
                     "processors": "",
-                    "groups": "",
-                    "action": "New action",
+                    "groups": ";Keyboard&Mouse",
+                    "action": "Skip",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "e630ebfc-1e70-41a0-83c2-85e3eb7c3ddf",
+                    "path": "<Gamepad>/buttonSouth",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";Gamepad",
+                    "action": "Skip",
                     "isComposite": false,
                     "isPartOfComposite": false
                 }

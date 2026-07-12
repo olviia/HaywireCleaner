@@ -10,5 +10,5 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 7ab286f56e1a4768b55eb497363eb3cc, type: 3}
-  m_Name: SystemInitialiseCutscenePlay
+  m_Name: CutsceneStartNewGamePlayed
   m_EditorClassIdentifier: Core::Core.Events.VoidEventSO
