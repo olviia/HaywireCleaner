@@ -2304,6 +2304,8 @@ GameObject:
   m_Component:
   - component: {fileID: 1326271167}
   - component: {fileID: 1326271168}
+  - component: {fileID: 1326271170}
+  - component: {fileID: 1326271169}
   m_Layer: 0
   m_Name: Quests
   m_TagString: Untagged
@@ -2338,6 +2340,31 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c13b7d5eb366446fa94955105b3f8d9b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Features.Quests::Features.Quests.QuestRuntime
+  catalog: {fileID: 11400000, guid: 1f2bebf2c904184429ca3871dc82b14a, type: 2}
+--- !u!114 &1326271169
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1326271166}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 53818b9c83eb4ecf89ae8178e17570cf, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Features.Quests::Features.Quests.testquest
+--- !u!114 &1326271170
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1326271166}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bcff0ac535554f73a85a542c0e3ada2c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Features.Quests::Features.Quests.QuestUIService
   catalog: {fileID: 11400000, guid: 1f2bebf2c904184429ca3871dc82b14a, type: 2}
 --- !u!1 &1368221266
 GameObject:

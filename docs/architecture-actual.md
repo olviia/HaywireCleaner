@@ -34,7 +34,7 @@ generic conditions" shape; the reasoning is in `quest-system-structure.md`.
 |---|---|---|---|---|
 | 1 | **Fact spine** | Persistent flag/counter store + `FactChanged`; *is* the save | `Core/SaveSystem/WorldState.cs`, `FactKeys.cs`, `SaveData.cs`, `Features/Quests/FactCondition.cs` | Live |
 | 2 | **Fact-key tooling** (editor) | Dropdown of every valid key, gathered from code + assets | `Assets/Scripts/Editor/FactKeyRegistry/*` | Live (editor-only) |
-| 3 | **Quests** | Conditions over facts; stage counter is the source of truth | `Features/Quests/*` (+ `Progression/DwellTracker.cs`) | Data + skeleton; **brain stubbed** |
+| 3 | **Quests** | Conditions over facts; stage counter is the source of truth | `Features/Quests/*` (+ `Progression/DwellTracker.cs`) | Live |
 | 4 | **Cutscenes** | Data-driven, event-triggered Timeline playback; writes finished-fact | `Features/Cutscenes/*` | Live |
 | 5 | **Session intent / new-game** | Carries New-Game vs Continue across the scene load | `Core/SceneControls/GameSession.cs`, `App/GameplayBootstrap.cs` | Live (New-Game path) |
 | 6 | **Scene flow** | Title↔Gameplay additive load, behind one vocabulary | `Core/SceneControls/SceneStateMachine.cs`, `SceneLoader.cs`, `App/Bootstrap.cs` | Live |
@@ -42,6 +42,7 @@ generic conditions" shape; the reasoning is in `quest-system-structure.md`.
 | 8 | **Input routing** | Device→`Intent`; context stack; glyph display projection | `Features/Input/InputReader.cs`, `Core/Input/*` | Live (Player/Cutscene) |
 | 9 | **Interaction & docking** | Focus sensor, interactables, charging dock | `Core/Interaction/*`, `Features/Modules/InteractionModule.cs`+`ChargingModule.cs`, `Features/Interactables/*` | Live |
 | 10 | **UI prompt / mount** | SO event channels for prompt + prefab mounting | `Core/Events/UI*RequestSO.cs`, `Features/UI/*` | Live |
+| 11 | **Quest journal (read-model)** | Read-only projection of quest facts → immutable snapshots for UI; UI knows no quest types | `Core/Quests/*`, `Features/Quests/QuestUIService.cs` | Live (seam; views pending) |
 
 ### Dependency direction (the only arrows allowed)
 
@@ -79,9 +80,8 @@ Unity packages). Verify: no Feature asmdef lists another Feature.
 
 ### The narrative stack, end to end (the trace to hold onto)
 
-This is the intended spine that ties fact + cutscene + quest + tracker. It is
-**partially wired**: everything up to and including "writes facts" exists; the
-QuestRuntime brain that reacts is still a stub (§3).
+This is the spine that ties fact + cutscene + quest + tracker, now wired end to
+end: the QuestRuntime brain that reacts to facts is live (§3).
 
 ```
 New Game (§5) → intro CutsceneDefinitionSO's eventTrigger raised
@@ -91,7 +91,7 @@ New Game (§5) → intro CutsceneDefinitionSO's eventTrigger raised
         InputRouter.Exit(Cutscene)
   → WorldState.FactChanged fires
   → QuestRuntime (§3): a quest whose startConditions test cutscene.intro.finished
-        is now met → writes quest.{id}.stage = 1  [BRAIN NOT YET IMPLEMENTED]
+        is now met → writes quest.{id}.stage = 1
   → entering stage 1 instantiates the stage's setupPrefabs, which include a
         DwellTracker (§3) for "move" and "rotate"
   → player moves/rotates → DwellTracker accumulates dwell time → writes
@@ -119,8 +119,9 @@ long obsolete; this is now the busiest seam in the game.)
 ### Who writes / reads facts today
 
 - **Writers:** `CutsceneDirector` (`SetFlag(CutsceneFinished)`), `DwellTracker`
-  (`SetFlag(Tutorial…)`), `GameFlow.StartNewGame`→`NewSave`, `TestButton`→`Save`.
-  QuestRuntime *will* write `SetCounter(QuestStage)` once its brain lands.
+  (`SetFlag(Tutorial…)`), `GameFlow.StartNewGame`→`NewSave`, `TestButton`→`Save`,
+  `QuestRuntime` (`SetCounter(QuestStage)` on start/advance, `SetFlag(QuestCompleted)`
+  on finish).
 - **Readers:** `FactCondition.IsMet` (`GetFlag`/`GetCounter`), `CutsceneDirector`
   (`GetFlag(CutsceneFinished)` for play-once gating).
 - **`FactChanged` subscribers:** `QuestRuntime.OnFactChanged` (only one today).
@@ -174,11 +175,11 @@ register it in `FactKeyRegistry.Sources`.
 
 ## 3. Quest system
 
-**Status:** Data model + `QuestRuntime` skeleton exist; **the brain is a stub** —
-`QuestRuntime.OnFactChanged` loops the catalog but does nothing yet. The
-progression model is decided (see `quest-system-structure.md` §6): **quest
-progress is itself a fact.** `quest.{id}.stage` (a counter) is the source of
-truth — `0` inactive, `1..Length` active on that stage, `>Length` → write
+**Status:** Live. The `QuestRuntime` brain reacts to `FactChanged` end to end
+(start → per-stage setup → objective completion → advance → completed). The
+progression model (see `quest-system-structure.md` §6): **quest progress is
+itself a fact.** `quest.{id}.stage` (a counter) is the source of truth — `0`
+inactive, `1..Length` active on that stage, `>Length` → write
 `quest.{id}.completed`. On load the brain rebuilds from the stage counter; it
 never remembers triggers.
 
@@ -188,10 +189,10 @@ never remembers triggers.
 |---|---|---|
 | `QuestDefinitionSO` | `Features/Quests/QuestDefinitionSO.cs` | `id`, `title`, `Stage[] stages`, `FactCondition[] startConditions`. Nested: `Stage {journalEntry, Objective[] objective, GameObject[] setupPrefabs}`, `Objective {LocalizedString description, FactCondition condition}`. Menu `Cleanbot/Quests/Definition`. |
 | `QuestCatalogSO` | `Features/Quests/QuestCatalogSO.cs` | `List<QuestDefinitionSO> quests`. Menu `Cleanbot/Quests/Catalog`. |
-| `QuestRuntime` | `Features/Quests/QuestRuntime.cs` | `MonoBehaviour`. Subscribes `WorldState.FactChanged`. Holds `setupStage` (quest→physically-built stage) and `setupInstances` (quest→spawned `setupPrefabs`). **`OnFactChanged` reconcile logic is TODO.** |
+| `QuestRuntime` | `Features/Quests/QuestRuntime.cs` | `MonoBehaviour`. Subscribes `WorldState.FactChanged`; `OnEnable` does a catch-up scan. Holds `setupStage` (quest→physically-built stage) and `setupInstances` (quest→spawned `setupPrefabs`); `Evaluate` runs the 3-state machine + reconcile per quest, logging each transition. |
 | `DwellTracker` | `Features/Quests/Progression/DwellTracker.cs` | Abstract `MonoBehaviour`: accumulates `Time.deltaTime` while `Intensity() > deadzone`, and after `requiredSeconds` does `SetFlag(FactKey, true)` + destroys itself. Nested concrete `AxisInputDwell` subscribes `ModuleInput.OnIntent`, maps a `Vertical`/`Horizontal` axis to `TutorialPlayerMoved`/`TutorialPlayerRotated`. This is an *objective-completion writer* — it lives inside a stage's `setupPrefabs`. |
 
-### Intended brain (agreed, not yet typed — this session's work)
+### The brain (implemented)
 
 Per-quest, on every `FactChanged` (key ignored; re-scan, matching the
 `null`="everything" convention): read `quest.{id}.stage`; if `0`, promote to `1`
@@ -201,6 +202,45 @@ down old `setupInstances` and instantiate the new stage's `setupPrefabs`; then i
 all of the current stage's objectives `IsMet()`, advance the counter. The
 counter, not derived state, is authoritative — so save/load is free and quest
 chains are just conditions on other quests' stage facts.
+
+### The read-model (journal / HUD seam)
+
+**Status:** Live seam; UI views (HUD tracker, journal menu) pending. Added
+2026-07-13. This is the **read sibling of `QuestRuntime`**: same catalog, same
+`FactChanged` subscription, opposite direction. `QuestRuntime` *writes*
+`quest.{id}.stage`; this *reads* it and paints immutable snapshots for the UI.
+Because progress is already a Core fact, the UI reaches quest state **through
+Core** and never references `Features.Quests` — the RED Engine `CJournalManager`
+split (state flows through a mediator; authored text stays owned by the quest
+module).
+
+| Component | Location | Responsibility |
+|---|---|---|
+| `IQuestJournalSource` | `Core/Quests/IQuestJournalSource.cs` | The UI's entire contract: `Snapshots()`, `Get(id)`, `TrackedId`, `SetTracked(id)`, `Changed`. Pure C# — no `UnityEngine`, no quest types. |
+| `QuestSnapshot` (+ `ObjectiveLine`, `QuestStatus`) | `Core/Quests/QuestSnapshot.cs` | Immutable value handed to the UI. Already-resolved `string`s only (`Title`, `StageStory[]`, `Objectives[]` of `(Text, Done)`). No `LocalizedString` crosses this line. |
+| `QuestJournal` | `Core/Quests/QuestJournal.cs` | Static registry slot (the `GlyphInput` idiom). Holds the one `IQuestJournalSource`, re-exposes a stable `Changed`, forwards reads null-safe. Decouples widget subscription lifetime from service lifetime. |
+| `QuestUIService` | `Features/Quests/QuestUIService.cs` | `MonoBehaviour, IQuestJournalSource`. Builds snapshots from `catalog` + `WorldState` facts; resolves `LocalizedString`→`string`; holds the tracked pin; fires `Changed`. `OnEnable` subscribes `WorldState.FactChanged` + `LocalizationSettings.SelectedLocaleChanged` and `Register`s into `QuestJournal`; `OnDisable` mirrors in reverse. |
+
+**Rules & gotchas**
+
+1. **State through Core, text owned by the feature.** Quest *progress* reaches the
+   UI as facts via `WorldState`; only authored *text* lives in `Features.Quests`,
+   resolved to plain `string` inside `QuestUIService`. So `Core/Quests/*` is
+   **Localization-free** — the boundary speaks resolved text. The UI
+   (`Features.UI`, pending) will reference only `Core.Quests`, never the quest asmdef.
+2. **Status is derived from the stage counter, identically to `QuestRuntime`**
+   (`0` excluded from the journal, `1..Length` active, `>Length` completed). One
+   source of truth — journal and runtime cannot disagree.
+3. **The tracked pin is late-bound and transient.** `TrackedId` resolves on every
+   read: explicit pin if still active, else first active quest, else `null` (HUD
+   hides). Not persisted — persisting needs a `WorldState` string accessor (the
+   `names` dict, §1 gotcha 5).
+4. **`Changed` is coarse** — fired on every `FactChanged` and every locale change;
+   the UI re-pulls. Registration order is irrelevant: `QuestJournal` is a facade
+   with a stable event, so a widget may subscribe before the service exists.
+5. **Views plug in as** (pending): HUD tracker always-mounted, reads
+   `TrackedId`→`Get`; journal menu opened via `UIElementDisplayRequestSO` (§10),
+   lists `Snapshots()` grouped by `Status`, calls `SetTracked(id)` on a Track click.
 
 ---
 
@@ -419,7 +459,6 @@ the Core/Feature stack above.
 
 ## Appendix B — Known stale / cleanup TODOs (surfaced by this sweep)
 
-- `QuestRuntime.OnFactChanged` — brain not implemented (§3).
 - `ActorHost.Awake → TestPossess()` and `[ContextMenu]` — dev-only auto-possess,
   marked for removal.
 - `GameFlow.OnNewGameRequested`/`OnLoadGameRequested` + `LoadGame()` — dead
