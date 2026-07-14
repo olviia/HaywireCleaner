@@ -6,12 +6,12 @@ namespace Features.Quests
 {
     public class testquest:MonoBehaviour
     {
-        void OnEnable()  => QuestUI.Changed += Log;
-        void OnDisable() => QuestUI.Changed -= Log;
+        void OnEnable()  => QuestInfo.Changed += Log;
+        void OnDisable() => QuestInfo.Changed -= Log;
 
         void Log()
         {
-            var snap = QuestUI.Get(QuestUI.TrackedId);
+            var snap = QuestInfo.Get(QuestInfo.TrackedId);
             if (snap == null)
             {
                 Debug.Log("[QuestProbe] nothing tracked");   

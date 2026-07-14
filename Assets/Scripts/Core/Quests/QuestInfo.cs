@@ -8,14 +8,14 @@ namespace Core.Quests
     /// <summary>
     /// this place is where UI reaches for quest data
     /// </summary>
-    public static class QuestUI
+    public static class QuestInfo
     {
-        private static IQuestUISource _source;
+        private static IQuestInfoSource _source;
         
         public static event Action Changed;
         public static bool IsReady => _source != null;
 
-        public static void Register(IQuestUISource source)
+        public static void Register(IQuestInfoSource source)
         {
             if (_source == source) return;
             if (IsReady) _source.Changed -= Raise; //detach from old 
@@ -24,7 +24,7 @@ namespace Core.Quests
             Raise();
         }
 
-        public static void Unregister(IQuestUISource source)
+        public static void Unregister(IQuestInfoSource source)
         {
             if (_source != source) return;
             _source.Changed -= Raise;

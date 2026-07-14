@@ -11,7 +11,7 @@ namespace Features.Quests
     /// <summary>
     /// this class gives the snapshot of quests to ui through core, through IQuestUISource
     /// </summary>
-    public class QuestUIService: MonoBehaviour, IQuestUISource
+    public class QuestInfoPasser: MonoBehaviour, IQuestInfoSource
     {
         [SerializeField] private QuestCatalogSO catalog;
         
@@ -32,12 +32,12 @@ namespace Features.Quests
         {
             LocalizationSettings.SelectedLocaleChanged += OnLocaleChanged;
             WorldState.FactChanged += OnFactChaged;
-            QuestUI.Register(this);
+            QuestInfo.Register(this);
         }
 
         private void OnDisable()
         {
-            QuestUI.Unregister(this);
+            QuestInfo.Unregister(this);
             LocalizationSettings.SelectedLocaleChanged -= OnLocaleChanged;
             WorldState.FactChanged -= OnFactChaged;
         }
