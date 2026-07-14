@@ -17,10 +17,34 @@ namespace Features.Input
         private readonly IReadOnlyDictionary<Intent, InputAction> intentInputMap;
         private readonly InputActionAsset actions; //to get buttons pressed
 
-        private readonly Dictionary<Intent, Glyph> glyphMap = new(); //this is what we have to give back to core
+        private readonly Dictionary<string, Glyph> glyphMap = new(); //this is what we have to give back to core
 
         private InputControlScheme? scheme;
         private InputDevice activeDevice;
+        public string KeyFor(Intent intent)
+        {
+            if (intentInputMap.TryGetValue(intent, out var action))
+                return action.actionMap.name + "/" + action.name;
+            return "";
+        }
+        
+        public Glyph GetGlyph(string actionName)
+        {
+            if (glyphMap.TryGetValue(actionName, out var g)) return g;
+            
+            var action = actions.FindAction(actionName);
+            g = action == null
+                ?  new Glyph() { label = "?" }
+                :  new Glyph 
+                    {
+                        label = action.GetBindingDisplayString(
+                            InputBinding.DisplayStringOptions.DontIncludeInteractions,
+                            scheme?.bindingGroup)
+                    };
+            
+            glyphMap[actionName] = g;
+            return g;
+        }
 
         public InputGlyphProvider(IReadOnlyDictionary<Intent, InputAction> intentInputMap, InputActionAsset actions)
         {
@@ -40,27 +64,7 @@ namespace Features.Input
             }
             return actions.controlSchemes.Count>0? actions.controlSchemes[0] : (InputControlScheme?)null;
         }
-
-        public Glyph GetGlyph(Intent intent)
-        {
-            if (glyphMap.TryGetValue(intent, out var g)) return g;
-            g = Resolve(intent);
-            glyphMap[intent] = g;
-            return g;
-        }
         
-        private Glyph Resolve(Intent intent)
-        {
-            if (!intentInputMap.TryGetValue(intent, out var action))
-                return new Glyph { label = "?" };
-            
-            return new Glyph //somehow get the string for glyph
-            {
-                label = action.GetBindingDisplayString(
-                    InputBinding.DisplayStringOptions.DontIncludeInteractions,
-                    scheme?.bindingGroup)
-            };
-        }
 
         public event Action DeviceChanged;
 

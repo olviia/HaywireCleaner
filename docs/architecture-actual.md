@@ -370,7 +370,8 @@ for UI clicks). One adapter, `InputReader`, turns the action asset into a single
 - **Execution (push)** — `ModuleInput.RaiseMove/RaiseInteract/RaiseStopCharging`
   broadcast `OnIntent(Intent,Vector2)`; the possessed `Actor` receives it (§7).
 - **Display (pull)** — `InputGlyphProvider` wraps the same map and registers into
-  `GlyphInput`; UI asks by `Intent` for a `Glyph` (label/sprite) to draw.
+  `GlyphInput`; UI asks by **action-key string** (`"Map/Action"`) for a `Glyph`
+  (label/sprite) to draw; actor-verb callers resolve their `Intent`→key via `KeyFor` first.
 
 | Component | Location | Responsibility |
 |---|---|---|
@@ -379,8 +380,8 @@ for UI clicks). One adapter, `InputReader`, turns the action asset into a single
 | `InputContext` / `InputRouter` | `Core/Input/InputContext.cs`, `InputRouter.cs` | Enum + static context stack, `ContextChangedTo`, `ActiveContext`. |
 | `CutsceneInput` | `Core/Input/CutsceneInput.cs` | Static `SkipCutscene` event (`RaiseSkip`). |
 | `GlyphInput` | `Core/Input/GlyphInput.cs` | Static registry holding one `IInputGlyphProvider`. |
-| `IInputGlyphProvider` / `Glyph` | `Core/Input/*` | Display seam: `GetGlyph(Intent)` + `DeviceChanged`; `Glyph {label, sprite}` (only `sprite` unwired). |
-| `InputGlyphProvider` | `Features/Input/InputGlyphProvider.cs` | Plain C#. Resolves `Intent`→`Glyph` via `GetBindingDisplayString` for the active control scheme; caches; tracks device via `InputSystem.onActionChange`, clears cache + raises `DeviceChanged` on a scheme switch. `IDisposable`. |
+| `IInputGlyphProvider` / `Glyph` | `Core/Input/*` | Display seam: `GetGlyph(string actionKey)` + `KeyFor(Intent)` + `DeviceChanged`; `Glyph {label, sprite}` (only `sprite` unwired). Glyphs are keyed by action, not `Intent` — `KeyFor` is the actor-verb→binding bridge. |
+| `InputGlyphProvider` | `Features/Input/InputGlyphProvider.cs` | Plain C#. Resolves an action-key string→`Glyph` via `FindAction`+`GetBindingDisplayString` for the active control scheme; caches by key; `KeyFor` bridges `Intent`→key via the intent map; tracks device via `InputSystem.onActionChange`, clears cache + raises `DeviceChanged` on a scheme switch. `IDisposable`. |
 
 **Rules:** the `Intent→InputAction` map lives only in `InputReader`. **Core never
 references `UnityEngine.InputSystem`** — verify `InputSystem` has no matches under

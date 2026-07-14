@@ -22,6 +22,10 @@ architecture patterns, etc.) rather than ad-hoc guesses.
   Don't pad responses with recap/summary of what was just discussed. You are allowed to not know something. When it is appropriate, you can use bisociations for the sake of more interesting conversation and topic
 - **Process discipline**: stick to the agreed step-by-step process (see
   `docs/design.md` and `docs/plan.md`)
+- **Memory policy**: do not create or update auto-memory (the `.claude/.../memory/`
+  store) for this project. Cached decisions recall as pseudo-authority and short-circuit
+  fresh re-derivation, which lowers answer quality. Durable preferences and status live
+  in this file, `docs/`, and the code — not in memory.
 
 ## Architecture working method
 

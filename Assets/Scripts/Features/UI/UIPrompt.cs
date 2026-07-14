@@ -60,7 +60,8 @@ namespace Features.UI
         
         void RefreshGlyph()
         {
-            var glyph = GlyphInput.Glyphs?.GetGlyph(currentIntent);
+            var glyphs = GlyphInput.Glyphs;
+            var glyph = glyphs?.GetGlyph(glyphs?.KeyFor(currentIntent));
             glyphLabel.text = glyph?.label ?? "?";
         }
     }

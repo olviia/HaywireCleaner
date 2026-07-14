@@ -29,6 +29,9 @@ namespace Features.Input
 
         //for cutscenes
         private InputAction skip;
+        
+        //for UI menu
+        private InputAction toggleMenu;
         private void Awake()
         {
             player = actions.FindActionMap("Player");
@@ -40,12 +43,16 @@ namespace Features.Input
             
             skip = actions.FindAction("Skip");
             
+            toggleMenu = actions.FindAction("ToggleMenu");
+            
             map[Intent.Move] = move;
             map[Intent.Interact] = interact;
 
             interact.performed += OnInteractPerformed;
 
             skip.performed += OnSkipPerformed;
+            
+            toggleMenu.performed += OnToggleMenuPerformed;
             
             glyphs = new InputGlyphProvider(map, actions);
             GlyphInput.Register(glyphs); //give the glyphs to the core
@@ -64,6 +71,7 @@ namespace Features.Input
         {
             interact.performed -= OnInteractPerformed;
             skip.performed -= OnSkipPerformed;
+            toggleMenu.performed -= OnToggleMenuPerformed;
             glyphs?.Dispose();
         }
 
@@ -72,16 +80,6 @@ namespace Features.Input
         {
             ModuleInput.RaiseMove(move.ReadValue<Vector2>());
         }
-
-        //discrete actions are raising events
-        void OnInteractPerformed(InputAction.CallbackContext context)
-        {
-            ModuleInput.RaiseInteract();
-            ModuleInput.RaiseStopCharging();
-        }
-
-        void OnSkipPerformed(InputAction.CallbackContext _) => CutsceneInput.RaiseSkip();
-
         private void Apply(InputContext context)
         {
             player.Disable();
@@ -96,6 +94,19 @@ namespace Features.Input
             };
             activeMap.Enable();
         }
+
+        //discrete actions are raising events
+        void OnInteractPerformed(InputAction.CallbackContext context)
+        {
+            ModuleInput.RaiseInteract();
+            ModuleInput.RaiseStopCharging();
+        }
+
+        void OnSkipPerformed(InputAction.CallbackContext _) => CutsceneInput.RaiseSkip();
+
+        
+        void OnToggleMenuPerformed(InputAction.CallbackContext _) => MenuInput.RaiseToggleMenu();
+
         
     }
 }

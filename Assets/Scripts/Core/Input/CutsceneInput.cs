@@ -3,7 +3,7 @@ using Core.Player;
 
 namespace Core.Input
 {
-    public class CutsceneInput
+    public static class CutsceneInput
     {
         public static event Action SkipCutscene;
         

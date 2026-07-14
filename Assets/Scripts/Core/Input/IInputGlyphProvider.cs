@@ -9,7 +9,8 @@ namespace Core.Input
     /// </summary>
     public interface IInputGlyphProvider
     {
-        Glyph GetGlyph(Intent intent);
+        Glyph GetGlyph(string actionKey);
+        string KeyFor(Intent intent);
         event Action DeviceChanged;
     }
 }
