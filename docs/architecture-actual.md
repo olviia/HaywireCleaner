@@ -42,7 +42,7 @@ generic conditions" shape; the reasoning is in `quest-system-structure.md`.
 | 8 | **Input routing** | Device→`Intent`; context stack; glyph display projection | `Features/Input/InputReader.cs`, `Core/Input/*` | Live (Player/Cutscene) |
 | 9 | **Interaction & docking** | Focus sensor, interactables, charging dock | `Core/Interaction/*`, `Features/Modules/InteractionModule.cs`+`ChargingModule.cs`, `Features/Interactables/*` | Live |
 | 10 | **UI prompt / mount** | SO event channels for prompt + prefab mounting | `Core/Events/UI*RequestSO.cs`, `Features/UI/*` | Live |
-| 11 | **Quest journal (read-model)** | Read-only projection of quest facts → immutable snapshots for UI; UI knows no quest types | `Core/Quests/*`, `Features/Quests/QuestUIService.cs` | Live (seam; views pending) |
+| 11 | **Quest journal (read-model + views)** | Read-only projection of quest facts → immutable snapshots; two-pane journal UI over the seam; UI knows no quest types | `Core/Quests/*`, `Features/Quests/QuestInfoPasser.cs`, `Features/UI/UIMenu/UIQuest*.cs` | Live (HUD pending) |
 
 ### Dependency direction (the only arrows allowed)
 
@@ -190,7 +190,8 @@ never remembers triggers.
 | `QuestDefinitionSO` | `Features/Quests/QuestDefinitionSO.cs` | `id`, `title`, `Stage[] stages`, `FactCondition[] startConditions`. Nested: `Stage {journalEntry, Objective[] objective, GameObject[] setupPrefabs}`, `Objective {LocalizedString description, FactCondition condition}`. Menu `Cleanbot/Quests/Definition`. |
 | `QuestCatalogSO` | `Features/Quests/QuestCatalogSO.cs` | `List<QuestDefinitionSO> quests`. Menu `Cleanbot/Quests/Catalog`. |
 | `QuestRuntime` | `Features/Quests/QuestRuntime.cs` | `MonoBehaviour`. Subscribes `WorldState.FactChanged`; `OnEnable` does a catch-up scan. Holds `setupStage` (quest→physically-built stage) and `setupInstances` (quest→spawned `setupPrefabs`); `Evaluate` runs the 3-state machine + reconcile per quest, logging each transition. |
-| `DwellTracker` | `Features/Quests/Progression/DwellTracker.cs` | Abstract `MonoBehaviour`: accumulates `Time.deltaTime` while `Intensity() > deadzone`, and after `requiredSeconds` does `SetFlag(FactKey, true)` + destroys itself. Nested concrete `AxisInputDwell` subscribes `ModuleInput.OnIntent`, maps a `Vertical`/`Horizontal` axis to `TutorialPlayerMoved`/`TutorialPlayerRotated`. This is an *objective-completion writer* — it lives inside a stage's `setupPrefabs`. |
+| `DwellTracker` | `Features/Quests/Progression/DwellTracker.cs` | Abstract `MonoBehaviour`: accumulates `Time.deltaTime` while `Intensity() > deadzone`, and after `requiredSeconds` does `SetFlag(FactKey, true)` + destroys itself. An *objective-completion writer* — it lives inside a stage's `setupPrefabs`. |
+| `AxisInputDwell` | `Features/Quests/Progression/AxisInputDwell.cs` | Concrete `DwellTracker` subclass (its **own file**, not nested). Serialized `axis` (`Vertical`/`Horizontal`); subscribes `ModuleInput.OnIntent`, caches the latest `Move` value, and maps the chosen axis component → `FactKeys.TutorialPlayerMoved`/`TutorialPlayerRotated` through its `FactKey`/`Intensity` overrides. |
 
 ### The brain (implemented)
 
@@ -205,29 +206,40 @@ chains are just conditions on other quests' stage facts.
 
 ### The read-model (journal / HUD seam)
 
-**Status:** Live seam; UI views (HUD tracker, journal menu) pending. Added
-2026-07-13. This is the **read sibling of `QuestRuntime`**: same catalog, same
-`FactChanged` subscription, opposite direction. `QuestRuntime` *writes*
-`quest.{id}.stage`; this *reads* it and paints immutable snapshots for the UI.
-Because progress is already a Core fact, the UI reaches quest state **through
-Core** and never references `Features.Quests` — the RED Engine `CJournalManager`
-split (state flows through a mediator; authored text stays owned by the quest
-module).
+**Status:** Live. Seam added 2026-07-13; the **journal menu views** landed
+2026-07-15 (sub-section below). HUD tracker still pending. This is the **read
+sibling of `QuestRuntime`**: same catalog, same `FactChanged` subscription,
+opposite direction. `QuestRuntime` *writes* `quest.{id}.stage`; this *reads* it
+and paints immutable snapshots for the UI. Because progress is already a Core
+fact, the UI reaches quest state **through Core** and never references
+`Features.Quests` — the RED Engine `CJournalManager` split (state flows through a
+mediator; authored text stays owned by the quest module).
+
+*(Naming: this seam was drafted as `QuestJournal` / `IQuestJournalSource` /
+`QuestUIService`; the shipped names are `QuestInfo` / `IQuestInfoSource` /
+`QuestInfoPasser` — same roles.)*
 
 | Component | Location | Responsibility |
 |---|---|---|
-| `IQuestJournalSource` | `Core/Quests/IQuestJournalSource.cs` | The UI's entire contract: `Snapshots()`, `Get(id)`, `TrackedId`, `SetTracked(id)`, `Changed`. Pure C# — no `UnityEngine`, no quest types. |
-| `QuestSnapshot` (+ `ObjectiveLine`, `QuestStatus`) | `Core/Quests/QuestSnapshot.cs` | Immutable value handed to the UI. Already-resolved `string`s only (`Title`, `StageStory[]`, `Objectives[]` of `(Text, Done)`). No `LocalizedString` crosses this line. |
-| `QuestJournal` | `Core/Quests/QuestJournal.cs` | Static registry slot (the `GlyphInput` idiom). Holds the one `IQuestJournalSource`, re-exposes a stable `Changed`, forwards reads null-safe. Decouples widget subscription lifetime from service lifetime. |
-| `QuestUIService` | `Features/Quests/QuestUIService.cs` | `MonoBehaviour, IQuestJournalSource`. Builds snapshots from `catalog` + `WorldState` facts; resolves `LocalizedString`→`string`; holds the tracked pin; fires `Changed`. `OnEnable` subscribes `WorldState.FactChanged` + `LocalizationSettings.SelectedLocaleChanged` and `Register`s into `QuestJournal`; `OnDisable` mirrors in reverse. |
+| `IQuestInfoSource` | `Core/Quests/IQuestInfoSource.cs` | The UI's entire contract: `Snapshots()`, `Get(id)`, `TrackedId`, `SetTracked(id)`, `Changed`. Pure C# — no `UnityEngine`, no quest types. |
+| `QuestSnapshot` (+ `ObjectiveLine`, `QuestStatus`) | `Core/Quests/QuestSnapshot.cs` | Immutable value handed to the UI. Already-resolved `string`s only: `Id`, `Title`, `Status` (`Active`/`Completed`), `StageStory[]` (a journal line per reached stage), `Objectives[]` of `(Text, Completed)`. No `LocalizedString` crosses this line. |
+| `QuestInfo` | `Core/Quests/QuestInfo.cs` | Static registry slot (the `GlyphInput` idiom). Holds the one `IQuestInfoSource`, re-exposes a stable `Changed`, forwards reads null-safe. Decouples widget subscription lifetime from service lifetime. |
+| `QuestInfoPasser` | `Features/Quests/QuestInfoPasser.cs` | `MonoBehaviour, IQuestInfoSource`. Builds snapshots from `catalog` + `WorldState` facts; resolves `LocalizedString`→`string`; holds the tracked pin; fires `Changed`. `OnEnable` subscribes `WorldState.FactChanged` + `LocalizationSettings.SelectedLocaleChanged` and `Register`s into `QuestInfo`; `OnDisable` mirrors in reverse. |
+
+**What `Build` projects** (a cross-file invariant the views rely on): `StageStory`
+= the journal line of *every reached stage* `0..reached-1`, so its **last** entry
+is the active stage's line and earlier entries are past stages. `Objectives` =
+**only the current stage's** objectives, each `Completed` = `condition.IsMet()`
+read live. A completed quest (`stage > Length`) carries all stage lines and an
+**empty** `Objectives`; stage `0` returns `null` and is filtered from `Snapshots()`.
 
 **Rules & gotchas**
 
 1. **State through Core, text owned by the feature.** Quest *progress* reaches the
    UI as facts via `WorldState`; only authored *text* lives in `Features.Quests`,
-   resolved to plain `string` inside `QuestUIService`. So `Core/Quests/*` is
-   **Localization-free** — the boundary speaks resolved text. The UI
-   (`Features.UI`, pending) will reference only `Core.Quests`, never the quest asmdef.
+   resolved to plain `string` inside `QuestInfoPasser`. So `Core/Quests/*` is
+   **Localization-free** — the boundary speaks resolved text. The views
+   (`Features.UI/UIMenu/*`) reference only `Core.Quests`, never the quest asmdef.
 2. **Status is derived from the stage counter, identically to `QuestRuntime`**
    (`0` excluded from the journal, `1..Length` active, `>Length` completed). One
    source of truth — journal and runtime cannot disagree.
@@ -236,11 +248,44 @@ module).
    hides). Not persisted — persisting needs a `WorldState` string accessor (the
    `names` dict, §1 gotcha 5).
 4. **`Changed` is coarse** — fired on every `FactChanged` and every locale change;
-   the UI re-pulls. Registration order is irrelevant: `QuestJournal` is a facade
+   the UI re-pulls. Registration order is irrelevant: `QuestInfo` is a facade
    with a stable event, so a widget may subscribe before the service exists.
-5. **Views plug in as** (pending): HUD tracker always-mounted, reads
-   `TrackedId`→`Get`; journal menu opened via `UIElementDisplayRequestSO` (§10),
-   lists `Snapshots()` grouped by `Status`, calls `SetTracked(id)` on a Track click.
+5. **HUD tracker still plugs in as** (pending): always-mounted, reads
+   `TrackedId`→`Get`, `CanvasGroup`-hidden when `TrackedId` is `null`. The journal
+   menu views below are the shipped half of "views plug in as".
+
+### The journal UI (two-pane views over the seam)
+
+**Status:** Live (added 2026-07-15). Master/detail journal inside the menu, a
+**pure projection of `QuestInfo`** — no view references `Features.Quests` or
+touches `WorldState`. uGUI + TMP, under `Features/UI/UIMenu/`.
+
+| Component | Location | Responsibility |
+|---|---|---|
+| `UIQuestListEntry` | `Features/UI/UIMenu/UIQuestListEntry.cs` | Dumb row. `Bind(snapshot)`: title + `description` = the active stage line (`StageStory[^1]`); if `Status == Completed`, recolors/re-styles the title (serialized `completedColor` + `FontStyles`). Holds `id`; a `Button` calls `Click()` → `event Action<string> Clicked`. Knows nothing of selection or the detail panel. |
+| `UIQuestTab` | `Features/UI/UIMenu/UIQuestTab.cs` | List view **+ selection presenter, merged**. On `QuestInfo.Changed` (and `OnEnable`) → `Rebuild`: destroys old rows, spawns one `UIQuestListEntry` per snapshot into `activeGroup`/`completedGroup` by `Status`, forwards each row's `Clicked` to `Select`. Owns `currentId`; `Select(id)` → `detailPanel.Show(Get(id))` or `ShowEmpty()`. Re-defaults the pick each rebuild (`TrackedId` → first snapshot → none). |
+| `UIQuestDetailPanel` | `Features/UI/UIMenu/UIQuestDetailPanel.cs` | Dumb detail. `Show(snapshot)`: title + one TMP rich-text block — active stage line, its objectives (done ones grayed + struck via the shared `completedColor`), then prior stages struck, newest-first; a completed quest strikes every line. `ShowEmpty()` for no selection. |
+
+**Rules & gotchas**
+
+1. **Both list *and* detail are pure functions of `Changed`.** `UIQuestTab.Rebuild`
+   re-runs the detail's `Show` (via `Select(currentId)`) every rebuild, so an
+   objective completing while the panel is open repaints the *detail*, not only the
+   list. Refreshing the list alone is the bug that leaves a checked objective un-grayed.
+2. **Selection lives in `UIQuestTab`, not the row.** Rows only shout `Clicked(id)`
+   (event up); the tab decides what's selected and pushes to the detail (command
+   down). This folds the presenter role into the list view — fine, but it means
+   gotcha 1 has to be honored *here*.
+3. **Never hand `Show` a null.** `Get(id)` returns `null` for an unknown/absent id
+   (`currentId` unset on first open, or a selected quest that vanished). `Select`
+   guards → `ShowEmpty()`; `Rebuild` re-defaults `currentId` when it stops resolving.
+   A blank pane on open reads as broken — hence the default-selection.
+4. **Grey-out/strike is a data-driven visual *state*, one prefab.** Active vs
+   Completed is a `QuestStatus` field the row/detail branch on — never a second
+   prefab/variant (a quest moves Active→Completed at runtime).
+5. **`testquest.cs`** (`Features/Quests/testquest.cs`) is a dev probe: logs the
+   tracked quest's objectives `[x]`/`[ ]` on every `Changed` — the ground-truth
+   check for what a snapshot actually carries.
 
 ---
 

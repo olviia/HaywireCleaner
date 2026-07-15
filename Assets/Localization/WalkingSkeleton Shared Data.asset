@@ -95,6 +95,18 @@ MonoBehaviour:
     m_Key: quest.mq-01-awakening.stage01.objective01
     m_Metadata:
       m_Items: []
+  - m_Id: 10745872243240960
+    m_Key: UI.quests.activequests
+    m_Metadata:
+      m_Items: []
+  - m_Id: 10746117480001536
+    m_Key: UI.quests.completedquests
+    m_Metadata:
+      m_Items: []
+  - m_Id: 10746355456421888
+    m_Key: UI.quests.quests
+    m_Metadata:
+      m_Items: []
   m_Metadata:
     m_Items: []
   m_KeyGenerator:

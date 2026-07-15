@@ -100,6 +100,18 @@ MonoBehaviour:
     m_Localized: Try to move
     m_Metadata:
       m_Items: []
+  - m_Id: 10745872243240960
+    m_Localized: Active Quests
+    m_Metadata:
+      m_Items: []
+  - m_Id: 10746117480001536
+    m_Localized: Completed Quests
+    m_Metadata:
+      m_Items: []
+  - m_Id: 10746355456421888
+    m_Localized: Quests
+    m_Metadata:
+      m_Items: []
   references:
     version: 2
     RefIds:

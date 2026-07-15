@@ -11,16 +11,15 @@ namespace Features.UI
         [SerializeField] private UIQuestListEntry prefab;
         [SerializeField] private VerticalLayoutGroup activeGroup;
         [SerializeField] private VerticalLayoutGroup completedGroup;
+        [SerializeField] private UIQuestDetailPanel detailPanel;
 
+        private string currentId;
         private List <UIQuestListEntry> instantiatedPrefabs= new();
-        
-        
-        private string _selectedId;
-        
 
         private void OnEnable()
         {
             QuestInfo.Changed += Rebuild;
+            Rebuild();
         }
 
         private void OnDisable()
@@ -30,18 +29,37 @@ namespace Features.UI
 
         private void Rebuild()
         {
-            instantiatedPrefabs.Clear();
-            var snapshots = QuestInfo.Snapshots;
-            foreach (var snapshot in snapshots)
+            Clear();
+            foreach (var snapshot in QuestInfo.Snapshots)
             {
-                if (snapshot == null) return;
-                //instantiatedPrefabs = Instantiate(prefab);
-                if (snapshot.Status == QuestStatus.Active)
+                var group = snapshot.Status == QuestStatus.Completed ? completedGroup : activeGroup;
+                var instance = Instantiate(prefab, group.transform);
+                instance.Bind(snapshot);
+                instantiatedPrefabs.Add(instance);
+                instance.Clicked += id => Select(id);
+            }
+            Select(currentId);
+        }
+
+        private void Clear()
+        {
+            foreach (var prefab in instantiatedPrefabs)
+            {
+                if (prefab != null)
                 {
-                    
+                    Destroy(prefab.gameObject);
                 }
             }
+            instantiatedPrefabs.Clear();
+        }
+
+        private void Select(string id)
+        {
+            if (string.IsNullOrEmpty(id)) return;
+            currentId = id;
+            detailPanel.Show(QuestInfo.Get(id));
         }
         
+
     }
 }
