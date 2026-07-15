@@ -1,4 +1,5 @@
 {
   "name": "Features.UI",
-  "references": ["Core", "Unity.TextMeshPro"]
+  "references": ["Core", "Unity.TextMeshPro",
+    "Unity.Localization"]
 }

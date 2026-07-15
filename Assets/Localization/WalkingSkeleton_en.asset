@@ -112,6 +112,10 @@ MonoBehaviour:
     m_Localized: Quests
     m_Metadata:
       m_Items: []
+  - m_Id: 10837617899483136
+    m_Localized: press {0} to move
+    m_Metadata:
+      m_Items: []
   references:
     version: 2
     RefIds:

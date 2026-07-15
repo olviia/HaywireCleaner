@@ -31,7 +31,7 @@ namespace Core.Player
             
         }
 
-        public static event Action<IPosessable, IPosessable> OnPosessionChanged;
+        //public static event Action<IPosessable, IPosessable> OnPosessionChanged;
         
         public static IReadOnlyList<IPosessable> Available => available;
     }

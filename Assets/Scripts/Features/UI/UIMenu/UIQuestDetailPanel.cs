@@ -3,7 +3,7 @@ using Core.Quests;
 using TMPro;
 using UnityEngine;
 
-namespace Features.UI
+namespace Features.UI.UIMenu
 {
     public class UIQuestDetailPanel:MonoBehaviour
     {

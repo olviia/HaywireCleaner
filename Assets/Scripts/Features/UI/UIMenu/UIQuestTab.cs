@@ -1,10 +1,9 @@
-using System;
 using System.Collections.Generic;
 using Core.Quests;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace Features.UI
+namespace Features.UI.UIMenu
 {
     public class UIQuestTab:MonoBehaviour
     {

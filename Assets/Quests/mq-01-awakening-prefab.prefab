@@ -44,7 +44,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 577624bc8db4461e93405ede8e15a4d0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Features.Quests::Features.Quests.Progression.AxisInputDwell
-  requiredSeconds: 2
+  requiredSeconds: 0.5
   deadzone: 0.1
   axis: 0
 --- !u!1 &7791285417302073142
@@ -124,6 +124,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 577624bc8db4461e93405ede8e15a4d0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Features.Quests::Features.Quests.Progression.AxisInputDwell
-  requiredSeconds: 2
+  requiredSeconds: 0.5
   deadzone: 0.1
   axis: 1

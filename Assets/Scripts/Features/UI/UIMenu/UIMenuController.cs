@@ -1,8 +1,7 @@
-using System;
 using Core.Input;
 using UnityEngine;
 
-namespace Features.UI
+namespace Features.UI.UIMenu
 {
     /// <summary>
     /// listens to input on tab or start, and opens/closes menu. has to also

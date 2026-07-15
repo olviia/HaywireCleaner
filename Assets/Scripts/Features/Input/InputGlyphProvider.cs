@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Core.Input;
 using Core.Player;
 using UnityEngine;
@@ -30,21 +31,35 @@ namespace Features.Input
         
         public Glyph GetGlyph(string actionName)
         {
-            if (glyphMap.TryGetValue(actionName, out var g)) return g;
+            if (glyphMap.TryGetValue(actionName, out var cached)) return cached;
             
             var action = actions.FindAction(actionName);
-            g = action == null
-                ?  new Glyph() { label = "?" }
-                :  new Glyph 
-                    {
-                        label = action.GetBindingDisplayString(
-                            InputBinding.DisplayStringOptions.DontIncludeInteractions,
-                            scheme?.bindingGroup)
-                    };
+            var display = action == null ? "?" : DisplayFor(action, scheme?.bindingGroup);
+            
+
+            var g = new Glyph() { label = string.IsNullOrEmpty(display) ? "?" : display };
             
             glyphMap[actionName] = g;
             return g;
         }
+
+        private static string DisplayFor(InputAction action, string group)
+        {
+            var mask = InputBinding.MaskByGroup(group);
+            var bindings = action.bindings;
+            for (int i = 0; i < bindings.Count; i++)
+            {
+                var binding = bindings[i];
+                if (!binding.isComposite && !binding.isPartOfComposite && mask.Matches(binding))
+                    return action.GetBindingDisplayString(i, InputBinding.DisplayStringOptions.DontIncludeInteractions);
+                if(binding.isComposite && i+ 1 <  bindings.Count && mask.Matches(bindings[i+1]))
+                    return PrimaryKeys(action.GetBindingDisplayString(i, InputBinding.DisplayStringOptions.DontIncludeInteractions));
+                
+            }
+            return string.Empty;
+        }
+        private static string PrimaryKeys(string display) =>
+            string.Join("/", display.Split('/').Select(p => p.Split('|')[0].Trim()));
 
         public InputGlyphProvider(IReadOnlyDictionary<Intent, InputAction> intentInputMap, InputActionAsset actions)
         {

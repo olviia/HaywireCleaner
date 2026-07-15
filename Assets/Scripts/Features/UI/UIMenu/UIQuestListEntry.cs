@@ -1,10 +1,9 @@
 using System;
 using Core.Quests;
-using Core.SaveSystem;
 using TMPro;
 using UnityEngine;
 
-namespace Features.UI
+namespace Features.UI.UIMenu
 {
     public class UIQuestListEntry:MonoBehaviour
     {

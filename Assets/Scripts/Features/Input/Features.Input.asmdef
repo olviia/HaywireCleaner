@@ -1,3 +1,7 @@
 {
-  "name": "Features.Input","references": ["Core", "Unity.InputSystem"]
+  "name": "Features.Input",
+  "references": [
+    "Core", 
+    "Unity.InputSystem", 
+    "Unity.TextMeshPro"]
 }
