@@ -116,6 +116,14 @@ MonoBehaviour:
     m_Localized: press {0} to move
     m_Metadata:
       m_Items: []
+  - m_Id: 10869200173936640
+    m_Localized: To move and rotate use {0}
+    m_Metadata:
+      m_Items: []
+  - m_Id: 10874880599535616
+    m_Localized: '{0} Close'
+    m_Metadata:
+      m_Items: []
   references:
     version: 2
     RefIds:

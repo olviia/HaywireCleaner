@@ -34,10 +34,28 @@ namespace Features.UI
             active[prefab] = Instantiate(prefab, container);
         }
 
-        void Unmount(GameObject prefab)
+        void Unmount(GameObject key)
         {
-            if(active.Remove(prefab, out var instance)) 
+            //addressed by prefab
+            if (active.Remove(key, out var instance))
+            {
                 Destroy(instance);
+                return;
+            }
+                
+            
+            //addressed by instance
+            GameObject prefab = null;
+            foreach(var pair in active)
+                if (pair.Value == key)
+                {
+                    prefab = pair.Key;
+                    break;
+                }
+            if(prefab != null && active.Remove(prefab, out var otherInstance))
+            {
+                Destroy(otherInstance);  
+            }
         }
     }
 }

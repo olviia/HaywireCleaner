@@ -12,7 +12,11 @@ namespace Core.Events
         //passed prefab has to be the same
         public event Action<GameObject> Show;
         public event Action<GameObject> Hide;
-        public void RaiseShow(GameObject prefab) => Show?.Invoke(prefab);
+        public void RaiseShow(GameObject prefab)
+        {
+            Show?.Invoke(prefab);
+        }
+
         public void RaiseHide(GameObject prefab) => Hide?.Invoke(prefab);
     }
 }

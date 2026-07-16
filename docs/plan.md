@@ -32,10 +32,9 @@ to do community:
 - 
 
 todo/in progress  dev:
-- awakening sequence - quest reveal
+
 - now will be time to save the progress with quests
--  build base ui for the quest system
-- tutorial prompt
+- 
 - ◻ Build minimal Settings screen
 - Add audio minimal sounds
 
@@ -45,6 +44,9 @@ make cutscene images slighty longer
 
 done dev:
 
+- tutorial prompt
+-  build base ui for the quest system
+- awakening sequence - quest reveal
 - quest system
 -awakening sequence - text reveal
 - - charging station - interactable

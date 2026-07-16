@@ -111,6 +111,14 @@ MonoBehaviour:
     m_Key: UI.testglyphs
     m_Metadata:
       m_Items: []
+  - m_Id: 10869200173936640
+    m_Key: UI.popup.tutorial
+    m_Metadata:
+      m_Items: []
+  - m_Id: 10874880599535616
+    m_Key: UI.button.close
+    m_Metadata:
+      m_Items: []
   m_Metadata:
     m_Items: []
   m_KeyGenerator:

@@ -32,6 +32,7 @@ namespace Features.Input
         
         //for UI menu
         private InputAction toggleMenu;
+        private InputAction confirm;
         private void Awake()
         {
             player = actions.FindActionMap("Player");
@@ -44,6 +45,7 @@ namespace Features.Input
             skip = actions.FindAction("Skip");
             
             toggleMenu = actions.FindAction("ToggleMenu");
+            confirm = actions.FindAction("Confirm");
             
             map[Intent.Move] = move;
             map[Intent.Interact] = interact;
@@ -53,6 +55,9 @@ namespace Features.Input
             skip.performed += OnSkipPerformed;
             
             toggleMenu.performed += OnToggleMenuPerformed;
+            confirm.started += OnConfirmStarted;
+            confirm.canceled += OnConfirmCanceled;
+            
             
             glyphs = new InputGlyphProvider(map, actions);
             GlyphInput.Register(glyphs); //give the glyphs to the core
@@ -72,6 +77,8 @@ namespace Features.Input
             interact.performed -= OnInteractPerformed;
             skip.performed -= OnSkipPerformed;
             toggleMenu.performed -= OnToggleMenuPerformed;
+            confirm.started -= OnConfirmStarted;
+            confirm.canceled -= OnConfirmCanceled;
             glyphs?.Dispose();
         }
 
@@ -102,10 +109,16 @@ namespace Features.Input
             ModuleInput.RaiseStopCharging();
         }
 
+        
+        //cutscenes
         void OnSkipPerformed(InputAction.CallbackContext _) => CutsceneInput.RaiseSkip();
 
         
+        
+        //menu
         void OnToggleMenuPerformed(InputAction.CallbackContext _) => MenuInput.RaiseToggleMenu();
+        void OnConfirmStarted(InputAction.CallbackContext _) => MenuInput.RaiseConfirmDown();
+        void OnConfirmCanceled(InputAction.CallbackContext _) => MenuInput.RaiseConfirmUp();
 
         
     }
