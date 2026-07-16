@@ -119,6 +119,18 @@ MonoBehaviour:
     m_Key: UI.button.close
     m_Metadata:
       m_Items: []
+  - m_Id: 11184857004388352
+    m_Key: quest.mq-01-awakening.stage02
+    m_Metadata:
+      m_Items: []
+  - m_Id: 11185254347583488
+    m_Key: quest.mq-01-awakening.stage02.objective1
+    m_Metadata:
+      m_Items: []
+  - m_Id: 11205507995676672
+    m_Key: ui.popup.tutorial.interact
+    m_Metadata:
+      m_Items: []
   m_Metadata:
     m_Items: []
   m_KeyGenerator:

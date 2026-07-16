@@ -684,7 +684,7 @@ GameObject:
   - component: {fileID: 5428939657917922691}
   - component: {fileID: 3448311079895222763}
   m_Layer: 5
-  m_Name: mq-01-awakening-tutorial
+  m_Name: mq-01-awakening-tutorial-move
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

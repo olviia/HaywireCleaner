@@ -1,9 +1,5 @@
 # Plan
 
-## The jam, as a forcing function
-
-- Deadline Sep 30, 2026 
-- Requirements: quality, polished
 
 ## Two tracks, running in parallel
 

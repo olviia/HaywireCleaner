@@ -124,6 +124,18 @@ MonoBehaviour:
     m_Localized: '{0} Close'
     m_Metadata:
       m_Items: []
+  - m_Id: 11184857004388352
+    m_Localized: Learn the interaction
+    m_Metadata:
+      m_Items: []
+  - m_Id: 11185254347583488
+    m_Localized: Open the door
+    m_Metadata:
+      m_Items: []
+  - m_Id: 11205507995676672
+    m_Localized: To interact with something press {0}
+    m_Metadata:
+      m_Items: []
   references:
     version: 2
     RefIds:

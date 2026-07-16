@@ -29,5 +29,6 @@ namespace Core.SaveSystem
         
         public const string TutorialPlayerMoved = "tutorial.moved";
         public const string TutorialPlayerRotated = "tutorial.rotated";
+        public const string TutorialDoorOpened = "tutorial.door-opened";
     }
 }

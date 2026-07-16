@@ -2,6 +2,7 @@ using Core.Events;
 using Core.Interaction;
 using Core.Player;
 using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.Localization;
 
 namespace Features.Interactables
@@ -14,6 +15,8 @@ namespace Features.Interactables
         [SerializeField] private LocalizedString promptClose;
         
         [SerializeField] private Animator animator;
+        [SerializeField] private UnityEvent onOpened;
+        
         private bool isOpen;
         private bool isBusy;
         private string Prompt => isOpen ? promptClose.GetLocalizedString() : promptOpen.GetLocalizedString();
@@ -39,6 +42,10 @@ namespace Features.Interactables
             animator.SetBool("isOpen", isOpen);
         }
 
-        public void OnMotionFinished() => isBusy = false;
+        public void OnMotionFinished()
+        {
+            isBusy = false;
+            if(isOpen) onOpened?.Invoke();
+        }
     }
 }

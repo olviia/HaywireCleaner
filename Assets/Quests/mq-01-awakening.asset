@@ -61,6 +61,31 @@ MonoBehaviour:
         value: 0
     setupPrefabs:
     - {fileID: 7791285417302073142, guid: 32c7caea5a860dd4ba87617d9c52d489, type: 3}
+  - journalEntry:
+      m_TableReference:
+        m_TableCollectionName: GUID:42c65d3e360c7b440a38df68aea27393
+      m_TableEntryReference:
+        m_KeyId: 11184857004388352
+        m_Key: 
+      m_FallbackState: 0
+      m_WaitForCompletion: 0
+      m_LocalVariables: []
+    objective:
+    - description:
+        m_TableReference:
+          m_TableCollectionName: GUID:42c65d3e360c7b440a38df68aea27393
+        m_TableEntryReference:
+          m_KeyId: 11185254347583488
+          m_Key: 
+        m_FallbackState: 0
+        m_WaitForCompletion: 0
+        m_LocalVariables: []
+      condition:
+        factKey: tutorial.door-opened
+        test: 0
+        value: 2
+    setupPrefabs:
+    - {fileID: 7791285417302073142, guid: 32c7caea5a860dd4ba87617d9c52d489, type: 3}
   startConditions:
   - factKey: cutscene.SystemInitialisation.finished
     test: 0
