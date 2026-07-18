@@ -10,15 +10,6 @@ namespace Features.Title
     public class TestButton:MonoBehaviour
     {
 
-        public void StartNewGame()
-        {
-            GameFlow.StartNewGame();
-        }
-        public void OnGoToGameplayButton()
-        {
-            SceneStateMachine.ChangeSceneTo(GameScene.Gameplay);
-        }
-
         public void OnSwitchLocale()
         {
             var currentLocale = LocalizationSettings.SelectedLocale;

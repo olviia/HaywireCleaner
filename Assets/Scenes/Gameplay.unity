@@ -4571,6 +4571,7 @@ GameObject:
   - component: {fileID: 1368221269}
   - component: {fileID: 1368221268}
   - component: {fileID: 1368221267}
+  - component: {fileID: 1368221270}
   m_Layer: 0
   m_Name: player
   m_TagString: Untagged
@@ -4633,9 +4634,22 @@ Transform:
   - {fileID: 457158687}
   - {fileID: 1160308541}
   - {fileID: 1700818698}
-  - {fileID: 2144610775}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 176.651, z: 0}
+--- !u!114 &1368221270
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1368221266}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bbe59bd2ade64b7f999b978f67026b3f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Features.Modules::Features.Modules.ModuleLoadout
+  catalog: {fileID: 11400000, guid: 7a0515633c9a78141b67ea431beb9f18, type: 2}
+  moduleRoot: {fileID: 1368221269}
 --- !u!1 &1460968535
 GameObject:
   m_ObjectHideFlags: 0
@@ -6247,55 +6261,6 @@ MonoBehaviour:
   m_ShadowLayerMask: 1
   m_RenderingLayers: 1
   m_ShadowRenderingLayers: 1
---- !u!1 &2144610774
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 2144610775}
-  - component: {fileID: 2144610778}
-  m_Layer: 0
-  m_Name: InteractModule
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &2144610775
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2144610774}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1368221269}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &2144610778
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2144610774}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 54191436576048518dbf7a51035d1ded, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Features.Modules::Features.Modules.InteractionModule
-  interactRange: 2
-  castRadius: 0.3
-  interactionLayer:
-    serializedVersion: 2
-    m_Bits: 64
 --- !u!1 &674838346975914293
 GameObject:
   m_ObjectHideFlags: 0

@@ -25,6 +25,7 @@ namespace Core.SaveSystem
         public static string CutsceneFinished(string id) => $"cutscene.{id}.finished";
         public static string QuestStage(string id) => $"quest.{id}.stage";
         public static string QuestCompleted(string id) => $"quest.{id}.completed";
+        public static string ModuleOwned(string id) => $"module.{id}.owned";
         
         
         public const string TutorialPlayerMoved = "tutorial.moved";

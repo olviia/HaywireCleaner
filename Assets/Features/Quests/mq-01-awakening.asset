@@ -85,7 +85,7 @@ MonoBehaviour:
         test: 0
         value: 2
     setupPrefabs:
-    - {fileID: 5798907682142454770, guid: eec45c1111f16ce4e8bf64fd7885bd79, type: 3}
+    - {fileID: 2768442291160430154, guid: c5ed13a792eef884ca02f8a429bb1755, type: 3}
   startConditions:
   - factKey: cutscene.SystemInitialisation.finished
     test: 0

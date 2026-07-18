@@ -14,6 +14,12 @@ namespace Features.Quests
         //for prefabs that have to be instantiated for this quest/stage
         private readonly Dictionary<QuestDefinitionSO, List<GameObject>> setupInstances = new();
 
+        
+        //guarding quests reevaluating midcycle
+        private bool reconciling;
+        private bool needsAnotherPass;
+        private const int MaxPasses = 32;
+        
         void OnEnable()
         {
             WorldState.FactChanged += OnFactChanged;
@@ -24,9 +30,31 @@ namespace Features.Quests
 
         private void OnFactChanged(string key)
         {
-            foreach (var quest in catalog.quests)
+            needsAnotherPass  = true; //in the process
+            if (reconciling) return; //a write that happens during this cycle is 
+            //a request for another pass, not a nested loop
+            
+            reconciling = true;
+            try
             {
-                Evaluate(quest);
+                int passes = 0;
+                while (needsAnotherPass)
+                {
+                    needsAnotherPass = false;
+                    foreach (var quest in catalog.quests)
+                        Evaluate(quest);
+                    if (++passes >= MaxPasses)
+                    {
+                        Debug.LogError(
+                            "[Quest] reconciliation did not settle after " + MaxPasses
+                                                                           + " passes - look for quests whose conditions toggle each other");
+                        break;
+                    }
+                }
+            }
+            finally
+            {
+                reconciling = false;
             }
         }
 

@@ -7,10 +7,7 @@ namespace Features.Title
     public class StartNewGameButton:MonoBehaviour
     {
         [SerializeField] private GameSession gameSession;
-        public void StartNewGame()
-        {
-            gameSession.Request(EntryMode.NewGame);
-            GameFlow.StartNewGame();
-        }
+        public void StartNewGame() => GameFlow.Begin(gameSession, EntryMode.NewGame);
+
     }
 }

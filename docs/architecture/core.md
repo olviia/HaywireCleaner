@@ -55,20 +55,30 @@ time-freeze *and* menu-suppression for free without knowing either exists.
 
 | Component | Location | Responsibility |
 |---|---|---|
-| `WorldState` | `Core/SaveSystem/WorldState.cs` | Static mediator over the one in-memory `SaveData`. Typed `GetFlag/SetFlag`, `GetCounter/SetCounter/AddToCounter`. Every setter fires `FactChanged(key)`. Owns JSON file I/O (`Save`/`Load`/`NewSave`; `Load`/`NewSave` fire `FactChanged(null)` = "everything changed"). `SaveExists`. |
-| `SaveData` | `Core/SaveSystem/SaveData.cs` | `internal` plain container. Dictionaries by value-shape: `flags:bool`, `counters:int`, `reactions:float`, `names:string`, `positions:Vector3`, `attributeValues:float`; lists `ownedModuleId`/`skillId`; character + version + `inGameTimeSeconds` + `savedAt`. Only `flags`/`counters` have accessors on `WorldState` today. |
-| `FactKeys` | `Core/SaveSystem/FactKeys.cs` | **The single string authority.** Builders `CutsceneFinished(id)`→`cutscene.{id}.finished`, `QuestStage(id)`→`quest.{id}.stage`, `QuestCompleted(id)`→`quest.{id}.completed`; consts `TutorialPlayerMoved`="tutorial.moved", `TutorialPlayerRotated`="tutorial.rotated". Carries `[FactKeySource]` (metadata for the editor registry — [editor-tooling](editor-tooling.md)). |
+| `WorldState` | `Core/SaveSystem/WorldState.cs` | Static mediator over the one in-memory `SaveData`. Typed `GetFlag/SetFlag`, `GetCounter/SetCounter/AddToCounter`, `TryGetPosition/SetPosition`. Flag/counter setters fire `FactChanged(key)`; **position setters deliberately do not** (see gotcha 6). Owns JSON file I/O (`Save`/`Load`/`NewSave`; `Load`/`NewSave` fire `FactChanged(null)` = "everything changed"). `Load()` returns `bool` and swallows a missing/corrupt file. `SaveExists`. |
+| `SaveData` | `Core/SaveSystem/SaveData.cs` | `internal` plain container, **engine-type-free by rule** — it is the on-disk wire format. Dictionaries by value-shape: `flags:bool`, `counters:int`, `reactions:float`, `names:string`, `positions:SaveVec3`, `attributeValues:float`; list `skillId`; character + version + `inGameTimeSeconds` + `savedAt`. All collections initialised at declaration so a file written by an older build deserialises missing fields to empty, not `null`. |
+| `SaveVec3` | `Core/SaveSystem/SaveData.cs` | `internal struct {float x,y,z}` + `ToVector3()`. Exists because Newtonsoft serialises `Vector3`'s `normalized`/`magnitude` **properties** — bloat at best, self-referencing loop at worst. `Vector3` stops at the `WorldState` API boundary. |
+| `FactKeys` | `Core/SaveSystem/FactKeys.cs` | **The single string authority.** Builders `CutsceneFinished(id)`→`cutscene.{id}.finished`, `QuestStage(id)`→`quest.{id}.stage`, `QuestCompleted(id)`→`quest.{id}.completed`, `ModuleOwned(id)`→`module.{id}.owned`; consts `TutorialPlayerMoved`="tutorial.moved", `TutorialPlayerRotated`="tutorial.rotated". Carries `[FactKeySource]` (metadata for the editor registry — [editor-tooling](editor-tooling.md)). |
 | `FactCondition` | `Features/Quests/FactCondition.cs` | Serializable `{factKey, FactTest test, int value}` + `IsMet()`. `FactTest` = `FlagIsTrue`/`FlagIsFalse`/`CounterAtLeast`. The specification/predicate object; pulls from `WorldState`, never pushed to. *(Lives in `Features.Quests`, not Core — the one wrinkle in the spine's location.)* |
 
 ### Who writes / reads facts today
 
 - **Writers:** `CutsceneDirector` (`SetFlag(CutsceneFinished)`), `DwellTracker`
-  (`SetFlag(Tutorial…)`), `GameFlow.StartNewGame`→`NewSave`, `TestButton`→`Save`,
+  (`SetFlag(Tutorial…)`), `GameFlow.Begin`→`NewSave`/`Load`, `TestButton`→`Save`,
   `QuestRuntime` (`SetCounter(QuestStage)` on start/advance, `SetFlag(QuestCompleted)`
-  on finish).
+  on finish), `FactSetterSO.Write` (**inspector-wired** — invoked from `UnityEvent`s
+  such as `SlidingDoors.onOpened` and `UIHoldToConfirm.onCompleted`, never from C#).
 - **Readers:** `FactCondition.IsMet` (`GetFlag`/`GetCounter`), `CutsceneDirector`
-  (`GetFlag(CutsceneFinished)` for play-once gating).
-- **`FactChanged` subscribers:** `QuestRuntime.OnFactChanged`, `QuestInfoPasser`.
+  (`GetFlag(CutsceneFinished)` for play-once gating), `ModuleLoadout`
+  (`GetFlag(ModuleOwned)` — [modules](modules.md)).
+- **`FactChanged` subscribers:** `QuestRuntime.OnFactChanged`, `QuestInfoPasser`,
+  `ModuleLoadout.OnFactChanged`.
+
+**Grep will not find the `FactSetterSO` writers.** They are persistent `UnityEvent`
+calls living in prefab/scene YAML, so the data→behaviour bridge is invisible to
+search — and renaming or duplicating a prefab can silently detach one. Components
+that bridge from inspector data into behaviour are exactly the ones that should
+announce themselves in the log; `FactSetterSO` currently does not (Appendix B).
 
 ### Rules & gotchas
 
@@ -78,42 +88,83 @@ time-freeze *and* menu-suppression for free without knowing either exists.
    method. Key strings *are* the save schema — `FactKeys` is append-only; renaming a
    key breaks saves.
 3. **`FactChanged` is synchronous.** A `SetFlag`/`SetCounter` inside a `FactChanged`
-   handler re-enters all handlers before the setter returns. Fine and idempotent at
-   this scale; mind it when `QuestRuntime` advances a stage from inside its own
-   handler (it recurses into the next stage).
-4. **`currentSaveData` starts null.** `GetFlag`/`GetCounter` before a
-   `NewSave()`/`Load()` will NPE. `GameFlow.StartNewGame` calls `NewSave` first;
-   entering Gameplay by any path that skips it (e.g. `TestButton.OnGoToGameplayButton`)
-   leaves the store null. Something must seed it.
-5. Add a new accessor pair on `WorldState` (mirroring `GetFlag`/`SetFlag`) the first
-   time a feature needs `reactions`/`names`/`positions`/`attributeValues` — don't
-   expose all of them up front.
+   handler re-enters all handlers before the setter returns. Consumers that can
+   *cause* fact writes must therefore not be re-entrant — `QuestRuntime` flattens this
+   into a pass loop ([quests](quests.md#the-brain-implemented)). A consumer that only
+   reads (`ModuleLoadout`, `QuestInfoPasser`) needs no such guard.
+4. **The store is never null.** `WorldState.Data` lazily creates an empty `SaveData`
+   on first access, so a consumer that wakes before `Load()`/`NewSave()` reads
+   defaults instead of throwing. This is a safety net, not a licence: a late load
+   still fires `FactChanged(null)` and reconciling consumers self-correct, but
+   **one-shot side effects cannot be un-fired** (a cutscene that already started
+   playing). State must still be prepared before the scene loads — see §5.
+5. **Ids inside keys are a save-file contract.** `module.{id}.owned`,
+   `quest.{id}.stage` and friends embed asset ids in the on-disk schema. Rename the
+   asset freely; freeze the `id` field once a build has been played. `FactKeys` is
+   append-only.
+6. **Positions are state, not facts.** `SetPosition` does not raise `FactChanged`:
+   nothing branches on a position, and routing continuous values through the fact bus
+   would re-run every quest evaluation and every loadout reconcile per write. Keep
+   high-frequency simulation values off the bus — the same rule will apply to dust
+   coverage.
+7. Add a new accessor pair on `WorldState` (mirroring `GetFlag`/`SetFlag`) the first
+   time a feature needs `reactions`/`names`/`attributeValues` — don't expose all of
+   them up front.
+8. **All file I/O is confined to `Save()`/`Load()`.** Nothing else in `Core` touches
+   `File`/`Path`. Keep it that way — it is what would make a second storage backend
+   a local change.
 
 ---
 
 ## 5. Session intent & new-game flow
 
-**Status:** Live for New Game (drives the intro end to end). `Continue`/`None` are
-stubs. `GameFlow.OnNewGameRequested`/`OnLoadGameRequested` fire but have no
-subscribers (dead); `GameFlow.LoadGame` has no callers.
+**Status:** Live for New Game *and* Continue. `None` (entering Gameplay directly
+from the editor) is deliberately inert — see below.
 
 Entry intent is carried as **data, not a live object**. `GameSession` (SO) holds a
 transient `EntryMode`; the Title button writes it, the Gameplay scene reads it once
 and acts — so the "new game started" broadcast is raised only *after* gameplay
-listeners exist.
+listeners exist. This is the Unreal `GameInstance` shape: the data outlives the
+scene load, so producer and consumer never have to be alive simultaneously.
+
+### Three responsibilities, deliberately separated
+
+| Concern | Where | Why there |
+|---|---|---|
+| **Intent** — "the player chose Continue" | `GameSession` | must survive the scene load |
+| **State preparation** — "therefore the save must exist" | `GameFlow.Begin` | must happen **before** the gameplay scene's objects wake |
+| **Execution** — "therefore play the awakening" | `GameplayBootstrap` | needs in-scene listeners to exist |
+
+Collapsing any two of these is the bug that was here before: `GameFlow` called
+`NewSave()` while `GameplayBootstrap.InitializeNewGame()` sat empty, and
+`StartNewGameButton` called both `Request()` and `StartNewGame()`.
 
 | Component | Location | Responsibility |
 |---|---|---|
 | `GameSession` | `Core/SceneControls/GameSession.cs` | SO. `EntryMode {None,NewGame,Continue}`; `Request(mode)` (menu), `Consume()` (read-and-clear, gameplay), `OnEnable` resets to `None`. Menu `Cleanbot/App/GameSession`. |
-| `GameplayBootstrap` | `App/GameplayBootstrap.cs` | `MonoBehaviour` in Gameplay. `Start`: `switch(session.Consume())` → NewGame: `InitializeNewGame()` (stub) + `newGameStarted.RaiseAction()`; Continue: `LoadSavedGame()` (stub); None: nothing. |
-| `StartNewGameButton` | `Features/Title/StartNewGameButton.cs` | `Request(NewGame)` then `GameFlow.StartNewGame()`. |
-| `GameFlow` | `Core/SceneControls/GameFlow.cs` | Static. `StartNewGame`: `WorldState.NewSave()` + (dead) `OnNewGameRequested` + `ChangeSceneTo(Gameplay)`. |
-| `TestButton` | `Features/Title/TestButton.cs` | Dev harness: `StartNewGame` (no session intent → intro won't play), `OnGoToGameplayButton`, `OnSwitchLocale`, `OnSaveTestButton`→`WorldState.Save()`. |
+| `GameFlow` | `Core/SceneControls/GameFlow.cs` | Static. **One transaction:** `Begin(session, mode)` → prepare `WorldState` (`Load()` for Continue, `NewSave()` for NewGame) → `session.Request(mode)` → `ChangeSceneTo(Gameplay)`, in that order. If `Load()` fails it **rewrites `mode` to `NewGame`** before recording intent, so the downstream scene plays the awakening rather than dropping into a blank world. |
+| `GameplayBootstrap` | `App/GameplayBootstrap.cs` | `MonoBehaviour` in Gameplay. `Start`: `switch(session.Consume())` → NewGame: `newGameStarted.RaiseAction()`; Continue: nothing (state already prepared by `GameFlow`); None: nothing. |
+| `StartNewGameButton` | `Features/Title/StartNewGameButton.cs` | `GameFlow.Begin(session, NewGame)`. One call. |
+| `LoadGameButton` | `Features/Title/LoadGameButton.cs` | `GameFlow.Begin(session, Continue)`. `OnEnable` sets `button.interactable = WorldState.SaveExists` (re-checked on enable, so returning to Title after a save makes it live). |
+| `TestButton` | `Features/Title/TestButton.cs` | Dev harness: `OnGoToGameplayButton`, `OnSwitchLocale`, `OnSaveTestButton`→`WorldState.Save()`. |
+
+**Why state prep must precede the transition.** `SceneLoader` loads additively and
+asynchronously: every object in the new scene runs `Awake`/`OnEnable` before
+`loadOperation.completed` fires, and Unity guarantees no ordering *between* objects.
+Preparing `WorldState` while still in Title sidesteps the race entirely — there is no
+window in which `QuestRuntime` or `CutsceneDirector` can read an empty world and
+start a cutscene that a later load cannot un-play.
+
+**`EntryMode.None` is not wired.** Pressing Play directly on the Gameplay scene has
+no prelude, so it would need its own load in `Awake` plus a Script Execution Order
+entry to beat every other `OnEnable`. Deliberately skipped: testing goes through the
+Title scene. If the editor shortcut is ever wanted, that is the shape it must take —
+`Start` is too late.
 
 **Timing invariant:** the raise happens in `GameplayBootstrap.Start`; listeners
 (`CutsceneDirector`) subscribe in `OnEnable`. Unity runs all `OnEnable` before any
 `Start`, so nothing is missed — **keep the raise in `Start`**. Two wires must point
-at the *same* asset: the `GameSession` on button + bootstrap, and the `VoidEventSO`
+at the *same* asset: the `GameSession` on buttons + bootstrap, and the `VoidEventSO`
 on bootstrap's `newGameStarted` + the intro def's `eventTrigger`.
 
 ---

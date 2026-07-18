@@ -1,4 +1,4 @@
 {
   "name": "Features.Modules",
-  "references": ["Core"]
+  "references": ["Core", "Unity.Localization"]
 }

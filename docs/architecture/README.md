@@ -16,6 +16,7 @@ system, so a task can load only what it needs:
 | [`cutscenes.md`](cutscenes.md) | Data-driven Timeline playback · finished-facts · play-once gating |
 | [`input.md`](input.md) | Context stack · execution transport · glyph display projection · `{0}` glyph-text view |
 | [`interaction.md`](interaction.md) | Focus sensor · interactables · charging dock |
+| [`modules.md`](modules.md) | Module ownership as facts · loadout reconciler · grant vs restore |
 | [`ui.md`](ui.md) | Prompt/mount channels · popups & modals · menu shell & pause · quest views |
 | [`editor-tooling.md`](editor-tooling.md) | Fact-key registry & dropdown · input action-key drawer |
 
@@ -23,8 +24,11 @@ system, so a task can load only what it needs:
 **Partial updates since:** 2026-07-15 — quest journal + HUD tracker; composite-aware
 glyph display; menu shell & context-driven pause. 2026-07-16 — split into this
 folder; popup/modal system (`UIPopupRequest`/`UIPopup`/`UIHoldToConfirm`) and the
-dual-addressed mount point; `MenuInput.ConfirmDown/Up`. Not a full re-sweep — the
-sections touched reflect current code.
+dual-addressed mount point; `MenuInput.ConfirmDown/Up`. 2026-07-18 — save/load path
+(`WorldState` hardening, `SaveVec3`, `GameFlow.Begin`, `LoadGameButton`); module
+loadout system (new [`modules.md`](modules.md)); `QuestRuntime` pass loop;
+`FactKeyRegistry` convention-based discovery. Not a full re-sweep — the sections
+touched reflect current code.
 
 **Maintenance rule:** keep it coarse and stable. Update a section when a system
 changes shape or a stated invariant/status stops being true — not for every edit.
@@ -52,7 +56,7 @@ generic conditions" shape; the reasoning is in `../quest-system-structure.md`.
 | 2 | **Fact-key tooling** (editor) | Dropdown of every valid key, gathered from code + assets | [editor-tooling](editor-tooling.md#fact-key-registry) | Live (editor-only) |
 | 3 | **Quests** | Conditions over facts; stage counter is the source of truth | [quests](quests.md) | Live |
 | 4 | **Cutscenes** | Data-driven, event-triggered Timeline playback; writes finished-fact | [cutscenes](cutscenes.md) | Live |
-| 5 | **Session intent / new-game** | Carries New-Game vs Continue across the scene load | [core](core.md#5-session-intent--new-game-flow) | Live (New-Game path) |
+| 5 | **Session intent / entry flow** | Carries New-Game vs Continue across the scene load; `GameFlow.Begin` prepares state *before* the transition | [core](core.md#5-session-intent--new-game-flow) | Live (New Game + Continue) |
 | 6 | **Scene flow** | Title↔Gameplay additive load, behind one vocabulary | [core](core.md#6-scene-flow) | Live |
 | 7 | **Possession & modules** | Which actor gets input; modules react to typed intents | [core](core.md#7-possession--module-input) | Live (one actor) |
 | 8 | **Input routing** | Device→`Intent`; context stack; glyph projection + `{0}` glyph-text view | [input](input.md) | Live (Player/Cutscene/Menu) |
@@ -61,6 +65,7 @@ generic conditions" shape; the reasoning is in `../quest-system-structure.md`.
 | 11 | **Quest read-model + views** | Quest facts → immutable snapshots; journal + HUD over the seam | [quests](quests.md#the-read-model-journal--hud-seam) · [ui](ui.md#the-quest-views) | Live |
 | 12 | **Menu shell & game-pause** | Menu open/close pushes `Menu` context; context drives `timeScale` | [ui](ui.md#12-menu-shell--game-pause) | Live (shell; skin pending) |
 | 13 | **Popups & modals** | Quest-spawned requester → mount channel → canvas-parented modal + hold-to-confirm | [ui](ui.md#13-popups--modals) | Live (tutorial popup) |
+| 14 | **Module ownership & loadout** | `module.{id}.owned` facts → reconciler spawns/destroys module prefabs under the actor | [modules](modules.md) | Live (interaction module) |
 
 ## Dependency direction (the only arrows allowed)
 
@@ -119,7 +124,11 @@ New Game (core §5) → intro CutsceneDefinitionSO's eventTrigger raised
         → Exit(Menu) → time resumes
   → player moves/rotates → DwellTracker accumulates → writes
         FactKeys.TutorialPlayerMoved / TutorialPlayerRotated, destroys itself
-  → FactChanged → QuestRuntime rechecks stage-1 objectives, all met → stage = 2 → …
+  → FactChanged → QuestRuntime rechecks stage-1 objectives, all met → stage = 2
+  → stage 2's setupPrefabs mount the interact popup; completing its hold fires
+        onCompleted → FactSetterSO.Write → module.InteractModule.owned = true
+  → FactChanged → ModuleLoadout instantiates the InteractionModule prefab under
+        the ActorHost → it self-registers with Actor → doors start showing prompts
 ```
 
 Read that trace once and the whole game's control flow is in your head: **nothing
@@ -156,8 +165,23 @@ Core/Feature stack above.
 
 - `ActorHost.Awake → TestPossess()` and `[ContextMenu]` — dev-only auto-possess,
   marked for removal.
-- `GameFlow.OnNewGameRequested`/`OnLoadGameRequested` + `LoadGame()` — dead
-  (no subscribers/callers). `Posession.OnPosessionChanged` — declared, never raised.
+- `Posession.OnPosessionChanged` — declared, never raised.
+- `GameplayBootstrap.InitializeNewGame()`/`LoadSavedGame()` — empty methods left
+  over from when state prep lived here. They read as hooks waiting to be filled, and
+  filling them would duplicate `GameFlow.Begin`. Delete or comment.
+- **Not yet built** (the save/load step, chunks 4–5): nothing writes the bot's
+  position, and nothing calls `WorldState.Save()` except `TestButton`. Planned —
+  save on manual key **and** on docking at the charging station, both to the same
+  file; `positions` accessors exist on `WorldState` and are unused.
+- `QuestRuntime` still has an unused `using System.Data;`.
+- `FactSetterSO.Write` is silent, and its `default:` case is `break` — an unhandled
+  `FactTest` writes nothing and tells nobody. Its `CounterAtLeast` case logs
+  "not implemented yet" and then performs the write anyway; the message is false and
+  trains you to ignore red text. It is the only fact writer wired purely through
+  inspector data, so it is the one that most needs a log line.
+- `QuestRuntime`'s non-convergence cap logs and `break`s, continuing on
+  half-reconciled state. Decision taken (2026-07-18) was loud failure — `throw`
+  instead — not yet applied.
 - `ModuleInput.RaiseStopCharging` / `Intent.StopCharge` — raised but unhandled
   ([interaction](interaction.md)).
 - `MyScript.cs` — empty stub, delete.

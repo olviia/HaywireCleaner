@@ -24,7 +24,8 @@ condition on another quest's stage fact. Nothing derived is authoritative.
 |---|---|---|
 | `QuestDefinitionSO` | `Features/Quests/QuestDefinitionSO.cs` | `id`, `title`, `Stage[] stages`, `FactCondition[] startConditions`. Nested: `Stage {journalEntry, Objective[] objective, GameObject[] setupPrefabs}`, `Objective {LocalizedString description, FactCondition condition}`. Menu `Cleanbot/Quests/Definition`. |
 | `QuestCatalogSO` | `Features/Quests/QuestCatalogSO.cs` | `List<QuestDefinitionSO> quests`. Menu `Cleanbot/Quests/Catalog`. |
-| `QuestRuntime` | `Features/Quests/QuestRuntime.cs` | `MonoBehaviour`. Subscribes `WorldState.FactChanged`; `OnEnable` does a catch-up scan. Holds `setupStage` (quest→physically-built stage) and `setupInstances` (quest→spawned `setupPrefabs`); `Evaluate` runs the 3-state machine + reconcile per quest, logging each transition. |
+| `QuestRuntime` | `Features/Quests/QuestRuntime.cs` | `MonoBehaviour`. Subscribes `WorldState.FactChanged`; `OnEnable` does a catch-up scan. Holds `setupStage` (quest→physically-built stage) and `setupInstances` (quest→spawned `setupPrefabs`); `Evaluate` runs the 3-state machine + reconcile per quest, logging each transition. Non-re-entrant — see the pass loop below. |
+| `FactSetterSO` | `Features/Quests/Progression/FactSetterSO.cs` | SO wrapping one `FactCondition` used as a *write*: `Write()` applies it (`FlagIsTrue`→`SetFlag(true)`, etc.). Has no C# callers by design — it is dropped into `UnityEvent`s in the inspector (`SlidingDoors.onOpened`, `UIHoldToConfirm.onCompleted`). Menu `Cleanbot/Quests/Fact Setter`. **Writes silently** and `default:` is a no-op — see README Appendix B. |
 | `DwellTracker` | `Features/Quests/Progression/DwellTracker.cs` | Abstract `MonoBehaviour`: accumulates `Time.deltaTime` while `Intensity() > deadzone`, and after `requiredSeconds` does `SetFlag(FactKey, true)` + destroys itself. An *objective-completion writer* — it lives inside a stage's `setupPrefabs`. |
 | `AxisInputDwell` | `Features/Quests/Progression/AxisInputDwell.cs` | Concrete `DwellTracker` subclass (its **own file**, not nested). Serialized `axis` (`Vertical`/`Horizontal`); subscribes `ModuleInput.OnIntent`, caches the latest `Move` value, and maps the chosen axis component → `FactKeys.TutorialPlayerMoved`/`TutorialPlayerRotated` through its `FactKey`/`Intensity` overrides. |
 | `FactCondition` | `Features/Quests/FactCondition.cs` | The predicate object — documented with the spine in [core](core.md#1-fact-spine). |
@@ -39,6 +40,45 @@ against re-fire); else **reconcile** — if the built stage ≠ the counter, tea
 old `setupInstances` and instantiate the new stage's `setupPrefabs`; then if all of
 the current stage's objectives `IsMet()`, advance the counter.
 
+### The pass loop — why the brain is not re-entrant
+
+`Evaluate` writes facts (`SetCounter(QuestStage)`), and `FactChanged` is synchronous
+([core](core.md#rules--gotchas) gotcha 3). Naïvely that means a stage advance opens a
+**nested** full sweep of the catalog from inside the outer `foreach`, which can nest
+again — stack depth scaling with cascade length, and the outer pass continuing over
+quests whose state changed underneath it.
+
+`OnFactChanged` therefore flattens recursion into iteration:
+
+```
+needsAnotherPass = true
+if (reconciling) return          // a write *during* reconciliation is a request
+                                 // for another pass, not a nested run
+reconciling = true
+try   while (needsAnotherPass) { needsAnotherPass = false; sweep catalog
+                                 if (++passes >= 32) { LogError; break } }
+finally reconciling = false
+```
+
+Three properties worth preserving:
+
+1. **Re-entry is a request, never a run.** Constant stack depth; every pass reads a
+   world that is not being mutated by a frame beneath it.
+2. **Termination is a fixpoint** — a full sweep that writes nothing. That *is* the
+   definition of "the world is consistent" for a rule system.
+3. **Non-convergence is detected, not survived.** Two quests toggling each other's
+   conditions would otherwise hang Unity inside an event handler with no stack trace
+   and no way to break in. The cap exists to *detect*. The current response is
+   `LogError` + `break`, which leaves the game running on half-reconciled state;
+   throwing instead would stop execution and surface the `SetFlag` that started the
+   cascade — the intended direction, not yet applied (README Appendix B).
+   `finally` guarantees `reconciling` resets either way, so a throw anywhere in
+   `Evaluate` cannot leave the brain permanently deaf to future fact changes.
+
+Same discipline as ordered, phase-based system updates in shipped ECS gameplay
+architectures (Overwatch): work discovered mid-frame is queued for a defined later
+pass rather than interleaved unpredictably.
+
 ### `setupPrefabs` — what a stage is allowed to spawn
 
 `ReconcileSetup` does `Instantiate(prefab)` with **no parent** → the prefab lands at
@@ -52,6 +92,9 @@ the **active scene's root** (see the additive-load gotcha in
    (`UIPopupRequest`) that asks the mount channel to build the widget inside the
    canvas. `QuestRuntime` stays ignorant of canvases; the stage prefab expresses a
    *wish*. See [ui §13](ui.md#13-popups--modals).
+3. **Permanent things are not.** `Teardown` destroys these instances when the stage
+   advances, so anything that must outlive the quest — a module grant, an unlocked
+   area — belongs in a fact, not here ([modules](modules.md)).
 
 ---
 

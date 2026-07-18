@@ -28,14 +28,24 @@ Namespace `Tools.FactKeyRegistry`.
 | `ConstKeySource` | `…/ConstKeySource.cs` | Reflects every `[FactKeySource]`-marked class's public-static-const strings (code-born keys, e.g. the tutorial consts). |
 | `CutsceneKeySource` | `…/CutsceneKeySource.cs` | Enumerates `CutsceneDefinitionSO` assets that opt in, yields `FactKeys.CutsceneFinished(id)`. |
 | `QuestKeySource` | `…/QuestKeySource.cs` | Enumerates `QuestDefinitionSO` assets, yields `FactKeys.QuestCompleted(id)` + `QuestStage(id)`. |
-| `FactKeyRegistry` | `…/FactKeyRegistry.cs` | Static. `Collect()` concatenates all sources, de-dupes. The list backing the dropdown. |
+| `ModuleKeySource` | `…/ModuleKeySource.cs` | Enumerates `ModuleDefinitionSO` assets, yields `FactKeys.ModuleOwned(id)` ([modules](modules.md)). |
+| `FactKeyRegistry` | `…/FactKeyRegistry.cs` | Static. `Collect()` discovers every `IFactKeySource` implementor via `TypeCache.GetTypesDerivedFrom`, instantiates each, concatenates and de-dupes. The list backing the dropdown. |
 | `FactKeyDropdown` / `FactKeyDropdownItem` | `…/FactKeyDropdownItem.cs` | `AdvancedDropdown` that splits keys on `.` into a tree; leaf carries the full key. |
 | `FactConditionDrawer` | `…/FactConditionDrawer.cs` | `[CustomPropertyDrawer(typeof(FactCondition))]`. Renders key-dropdown + `test` + (`value` only when `CounterAtLeast`). |
 
 **Invariant:** the *same* `FactKeys` method computes the key both at author time
 (sources, in-editor) and at runtime (writers/readers). Adding a new derived key
-family = one `FactKeys` method + (if asset-derived) one `IFactKeySource`, then
-register it in `FactKeyRegistry.Sources`.
+family = one `FactKeys` method + (if asset-derived) one `IFactKeySource`. **Nothing
+else** — discovery is by convention.
+
+**Sources register by existing.** `Collect()` was a hardcoded
+`IFactKeySource[] Sources` array, which made `IFactKeySource`'s own doc comment
+("implement this to contribute keys") a lie: implementing it did nothing, and the
+failure was silent — no error, just an absent dropdown entry, which reads as a
+broken key format or a broken asset. `TypeCache` is editor-only and precomputed at
+domain reload, so the cost is nil and the class of bug is gone rather than this
+instance of it. A type that implements the interface without a parameterless
+constructor is skipped with a warning.
 
 ---
 
