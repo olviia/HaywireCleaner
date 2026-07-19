@@ -116,5 +116,30 @@ player to play this animation
 and to play some sound
 
 
+Cleaning Module:
+adds the possibility to clean dirt
+
+QuestSystem has nothing to do with cleaning, cleaning module only says that floorx is 73% clean, floor x crossed the clean trhreshold
+Inventory - dust gained. i was thinking that integer value might be wrong for this case. i wanted to show float with 2 digits
+UI - show how much dust was gained. for the quest to clean the room i wanted to show the area being cleaned increasing like a stopwatch, to bring satisfaction. and for the 'gather some dust' i also wanted same effect. and for the inventory capacity, i wanted to have a ui picture showing it climbing up continuously. 
+ActorHost has this module registered
+How the dirt is collected:
+    cleaning module paints the mask texture, this texture is used by a shader to display clean and dirty parts
+    in future over time the mask texture will be changed depending on the type of the dirt. Cleaning module should know absolutely nothing about it. We will implement only Dust surface for now, with one implementation how the texture will change in the process of cleaning or after the cleaning. Over time. 
+    Dirt gathering is continuous, but it is stupid to send flags to quests, inventory or interface every frame. I don't know yet how i want to do it, but i know that i dont want everything in the game to reevaluate themselves every frame when the dust is collected. so i do
+
+clean fraction - average of mask. both for room(floor) and separate objects. when we reach 8/10 the room is declared clean, and the mask turns into full white
+dust gained = delta of clean fraction * surfaceAres * dust per square metre
+
+
+floor cleaning module -> raycast down  _> get dirtsurface -> perform cleaning(texture+dust to inventory)
+cleans continiously because i want the straight line to be seen, like in the real life. maybe in this case 'continiously' does mean once per 1 cm. and the nonuniformity of the line behind will not be seen. 
+
+floor - mesh collider, mesh renderer + shader, dirtSurface (work with mask)
+maybe the designer can select on the component that the mask resolution will be x times smaller and configure it accordingly if needed. but it should be made automatically from floor bounds. it should work on plane as well
+
+dust in the collector number.. cleaning module cleans, inventory module holds what was cleaned, it should be this way. when the inventory has no capacity, it sets the tag 'inventory full' and cleaning module is blocked by this tag, so it cant clean anymore
+
+
 
 
